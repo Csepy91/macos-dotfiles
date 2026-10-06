@@ -1,0 +1,25 @@
+[general]
+animationsEnabled = true
+defaultLayoutType = "niri"
+hotkeysEnabled = true
+ipcEnabled = true
+updateChecksEnabled = true
+systemHyperTrigger = "None"
+
+[borders]
+enabled = false
+
+[workspaceBar]
+enabled = false
+
+[gaps]
+size = 8.0
+
+[gaps.outer]
+top = 36.0
+bottom = 8.0
+left = 8.0
+right = 8.0
+
+[appearance]
+mode = "dark"
