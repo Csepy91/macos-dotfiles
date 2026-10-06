@@ -1,0 +1,12 @@
+[init]
+	defaultBranch = main
+[pull]
+	rebase = true
+[push]
+	autoSetupRemote = true
+[core]
+	editor = nvim
+
+# Set your identity locally:
+#   git config --global user.name "Your Name"
+#   git config --global user.email "you@example.com"

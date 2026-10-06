@@ -7,16 +7,6 @@ elif [ -x /usr/local/bin/brew ]; then
   eval "$(/usr/local/bin/brew shellenv)"
 fi
 
-# Cinematic Noir — master palette + CLI colors (before plugins that read styles)
-if [[ -f "${HOME}/.config/theme/colors.sh" ]]; then
-  # shellcheck disable=SC1091
-  source "${HOME}/.config/theme/colors.sh"
-fi
-if [[ -f "${HOME}/.config/theme/cli.sh" ]]; then
-  # shellcheck disable=SC1091
-  source "${HOME}/.config/theme/cli.sh"
-fi
-
 # History
 HISTSIZE=50000
 SAVEHIST=50000

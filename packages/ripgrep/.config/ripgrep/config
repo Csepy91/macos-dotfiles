@@ -1,0 +1,10 @@
+# ripgrep — Cinematic Noir
+# Used via RIPGREP_CONFIG_PATH (~/.config/ripgrep/config)
+
+--colors=path:fg:139,104,181
+--colors=path:style:bold
+--colors=line:fg:109,114,145
+--colors=column:fg:109,114,145
+--colors=match:fg:111,120,196
+--colors=match:style:bold
+--smart-case

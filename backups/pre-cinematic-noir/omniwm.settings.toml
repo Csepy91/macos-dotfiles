@@ -21,6 +21,5 @@ bottom = 8.0
 left = 8.0
 right = 8.0
 
-# Cinematic Noir — dark appearance (palette lives in ~/.config/theme/)
 [appearance]
 mode = "dark"

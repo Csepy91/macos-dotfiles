@@ -141,11 +141,13 @@ features_brew_casks() {
 
 # Stow package names (directories under packages/) to link for current flags.
 features_stow_packages() {
-  local -a out=(zsh)
+  # theme is always linked — master palette for shell + rice scripts
+  local -a out=(zsh theme)
   $CLI_git && out+=(git)
   $CLI_bat && out+=(bat)
   $CLI_btop && out+=(btop)
   $CLI_gh && out+=(gh)
+  $CLI_ripgrep && out+=(ripgrep)
   $CLI_starship && out+=(starship)
   $CLI_yazi && out+=(yazi)
   $RICE_ghostty && out+=(ghostty)
@@ -153,5 +155,6 @@ features_stow_packages() {
   $RICE_skhd && out+=(skhd)
   $RICE_jankyborders && out+=(borders)
   $RICE_sketchybar && out+=(sketchybar)
+  $APPS_sublimeText && out+=(sublime)
   print -r -- "${out[@]}"
 }

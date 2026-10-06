@@ -1,4 +1,4 @@
-# Yazi — Cinematic Noir
+# Yazi — minimal defaults; Catppuccin via theme.toml when present
 [manager]
 ratio = [1, 4, 3]
 sort_by = "alphabetical"
