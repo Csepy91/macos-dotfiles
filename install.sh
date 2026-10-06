@@ -79,9 +79,28 @@ apply_selection() {
     eval "${prefix}_${key}=false"
   done
   for key in ${(f)selected}; do
-    [[ -z "$key" ]] && continue
+    if [[ -z "$key" ]]; then
+      continue
+    fi
     eval "${prefix}_${key}=true"
   done
+}
+
+# Build gum --selected args for enabled flags under PREFIX_*.
+# Must use if/fi — `eval '[[ false ]] && …'` returns 1 and trips `set -e`.
+gum_selected_args() {
+  local prefix="$1"
+  shift
+  local -a keys=("$@")
+  local -a args=()
+  local k var
+  for k in "${keys[@]}"; do
+    var="${prefix}_${k}"
+    if [[ "${(P)var}" == "true" ]]; then
+      args+=(--selected "$k")
+    fi
+  done
+  print -r -- "${args[@]}"
 }
 
 interactive_select() {
@@ -93,36 +112,39 @@ interactive_select() {
 
   if (( $+commands[gum] )); then
     info "Select CLI tools (Space toggles, Enter confirms)"
-    gum_selected=()
-    for k in "${cli_keys[@]}"; do
-      eval "[[ \"\${CLI_${k}}\" == \"true\" ]] && gum_selected+=(--selected \"$k\")"
-    done
+    gum_selected=(${(z)$(gum_selected_args CLI "${cli_keys[@]}")})
     sel="$(gum choose --no-limit --header "CLI tools" "${gum_selected[@]}" "${cli_keys[@]}" || true)"
-    [[ -n "$sel" ]] && apply_selection CLI "$sel"
+    if [[ -n "$sel" ]]; then
+      apply_selection CLI "$sel"
+    fi
 
     info "Select rice components"
-    gum_selected=()
-    for k in "${rice_keys[@]}"; do
-      eval "[[ \"\${RICE_${k}}\" == \"true\" ]] && gum_selected+=(--selected \"$k\")"
-    done
+    gum_selected=(${(z)$(gum_selected_args RICE "${rice_keys[@]}")})
     sel="$(gum choose --no-limit --header "Rice" "${gum_selected[@]}" "${rice_keys[@]}" || true)"
-    [[ -n "$sel" ]] && apply_selection RICE "$sel"
+    if [[ -n "$sel" ]]; then
+      apply_selection RICE "$sel"
+    fi
 
     info "Select GUI apps"
-    gum_selected=()
-    for k in "${apps_keys[@]}"; do
-      eval "[[ \"\${APPS_${k}}\" == \"true\" ]] && gum_selected+=(--selected \"$k\")"
-    done
+    gum_selected=(${(z)$(gum_selected_args APPS "${apps_keys[@]}")})
     sel="$(gum choose --no-limit --header "GUI apps" "${gum_selected[@]}" "${apps_keys[@]}" || true)"
-    [[ -n "$sel" ]] && apply_selection APPS "$sel"
+    if [[ -n "$sel" ]]; then
+      apply_selection APPS "$sel"
+    fi
   elif (( $+commands[fzf] )); then
     warn "gum not found — using fzf (TAB to multi-select)"
     sel="$(printf '%s\n' "${cli_keys[@]}" | fzf --multi --prompt 'CLI > ' || true)"
-    [[ -n "$sel" ]] && apply_selection CLI "$sel"
+    if [[ -n "$sel" ]]; then
+      apply_selection CLI "$sel"
+    fi
     sel="$(printf '%s\n' "${rice_keys[@]}" | fzf --multi --prompt 'Rice > ' || true)"
-    [[ -n "$sel" ]] && apply_selection RICE "$sel"
+    if [[ -n "$sel" ]]; then
+      apply_selection RICE "$sel"
+    fi
     sel="$(printf '%s\n' "${apps_keys[@]}" | fzf --multi --prompt 'Apps > ' || true)"
-    [[ -n "$sel" ]] && apply_selection APPS "$sel"
+    if [[ -n "$sel" ]]; then
+      apply_selection APPS "$sel"
+    fi
   else
     warn "Neither gum nor fzf found — keeping defaults."
     info "Tip: brew install gum && re-run ./install.sh"
