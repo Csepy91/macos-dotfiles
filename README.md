@@ -41,8 +41,9 @@ The installer will:
 5. Start sketchybar / borders / skhd / OmniWM services
 
 Homebrew 6+ requires tap trust for third-party formulae. The installer marks
-`FelixKratz/formulae/sketchybar` (and borders / skhd / the sketchybar font) as
-`trusted: true` in the Brewfile and runs `brew trust` before bundling.
+`FelixKratz/formulae/sketchybar` (and borders / skhd) as `trusted: true` in the
+Brewfile and runs `brew trust` before bundling. The sketchybar app font comes
+from official `homebrew/cask` (`font-sketchybar-app-font`).
 
 Then follow [docs/PERMISSIONS.md](docs/PERMISSIONS.md).
 
