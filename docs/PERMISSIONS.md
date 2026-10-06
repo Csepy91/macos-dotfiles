@@ -21,14 +21,21 @@ ls -l ~/.zshrc
 ls ~/.config/omniwm/settings.toml
 ls /Applications/OmniWM.app
 brew list --formula sketchybar borders skhd
+ls -l /opt/homebrew/bin/skhd
 ```
 
-Open a **new** terminal tab, then check:
+Open a **new** terminal tab (so Homebrew is on `PATH`), then check:
 
 ```sh
 alias ls
-alias cd
 which eza
+which skhd   # should print /opt/homebrew/bin/skhd
+```
+
+If `skhd` is “command not found” in an old shell, use the full path or open a new tab:
+
+```sh
+/opt/homebrew/bin/skhd --version
 ```
 
 If `~/.zshrc` is missing, re-run `./install.sh --yes` or `./scripts/restow.sh`.
@@ -49,13 +56,6 @@ Path: **System Settings → Desktop & Dock → Mission Control**
 
 You want the second one (privacy permission list with toggles).
 
-### Easiest: search
-
-1. Open **System Settings**
-2. Click the **search field** at the top (or press **Cmd+F**)
-3. Type: `control the computer` or `Privacy Accessibility`
-4. Choose the Privacy & Security Accessibility result
-
 ### Terminal deep links
 
 ```sh
@@ -72,28 +72,47 @@ Enable for:
 | App | How it appears / path |
 | --- | --- |
 | OmniWM | **OmniWM** |
-| skhd | often add via **+** → Go to Folder |
+| skhd | often **missing until you add it** — see below |
 | sketchybar | often add via **+** → Go to Folder |
 | borders | often add via **+** → Go to Folder |
 
-### If skhd / sketchybar / borders are not in the list
+### skhd does not show up automatically
 
-1. Unlock the padlock if present
-2. Click **+**
-3. Press **Cmd+Shift+G** (Go to Folder)
-4. Paste one of these paths (Homebrew Apple Silicon):
+`skhd` is a CLI binary, not an `.app`. macOS will not list it until you add it
+manually (or until it has run once requesting access).
+
+1. Install + start its LaunchAgent (do **not** use `brew services` — skhd has none).
+   `--restart-service` fails until the plist exists; use `--start-service` first:
+
+```sh
+/opt/homebrew/bin/skhd --install-service   # writes ~/Library/LaunchAgents/com.koekeishiya.skhd.plist
+/opt/homebrew/bin/skhd --start-service     # bootstrap + run (also auto-installs if missing)
+# later, after config changes:
+/opt/homebrew/bin/skhd --restart-service
+```
+
+2. Open **System Settings → Privacy & Security → Accessibility**
+3. Unlock the padlock if present
+4. Click **+**
+5. Press **Cmd+Shift+G** (Go to Folder)
+6. Paste:
 
 ```text
 /opt/homebrew/bin/skhd
+```
+
+7. Toggle **skhd** ON
+8. Also add and enable:
+
+```text
 /opt/homebrew/bin/sketchybar
 /opt/homebrew/bin/borders
 ```
 
-5. Toggle each entry **ON**
-6. Restart services:
+9. Restart:
 
 ```sh
-brew services restart skhd
+/opt/homebrew/bin/skhd --restart-service
 brew services restart sketchybar
 brew services restart borders
 launchctl kickstart -k "gui/$(id -u)/com.dotfiles.omniwm"
@@ -103,7 +122,7 @@ launchctl kickstart -k "gui/$(id -u)/com.dotfiles.omniwm"
 
 **Privacy & Security → Input Monitoring**
 
-Enable **OmniWM** and **skhd** (add with **+** if missing — same paths as above).
+Enable **OmniWM** and **skhd** (add `/opt/homebrew/bin/skhd` with **+** if missing).
 
 ## Screen Recording (optional)
 
@@ -141,4 +160,6 @@ OmniWM’s command palette (`Ctrl+Option+Space`) still works for windows/apps.
 ./install.sh --yes
 # or
 brew bundle --file ~/dotfiles/Brewfile && ./scripts/restow.sh
+/opt/homebrew/bin/skhd --install-service
+/opt/homebrew/bin/skhd --start-service
 ```
