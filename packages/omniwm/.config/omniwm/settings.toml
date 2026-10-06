@@ -10,7 +10,7 @@ mode = "dark"
 tabRailAppIcons = false
 
 [borders]
-enabled = true
+enabled = false
 width = 3.0
 
 [borders.color]

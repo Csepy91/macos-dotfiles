@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Wi-Fi strength + up/down Mbps — Cinematic Noir
 
+if [[ "${SENDER:-}" == "mouse.exited.global" ]]; then
+  sketchybar --set "${NAME:-wifi}" popup.drawing=off
+  exit 0
+fi
+
 CACHE_DIR="${HOME}/.cache/sketchybar"
 CACHE_FILE="${CACHE_DIR}/wifi_net"
 mkdir -p "${CACHE_DIR}"

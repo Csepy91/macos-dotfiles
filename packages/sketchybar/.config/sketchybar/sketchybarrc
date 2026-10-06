@@ -20,7 +20,8 @@ for f in \
   "${FONT_DIR}/HackNerdFont-Regular.ttf" \
   "${FONT_DIR}/SymbolsNerdFont-Regular.ttf" \
   "${FONT_DIR}/SymbolsNerdFontMono-Regular.ttf" \
-  "${FONT_DIR}/JetBrainsMonoNerdFont-Bold.ttf"
+  "${FONT_DIR}/JetBrainsMonoNerdFont-Bold.ttf" \
+  "/System/Library/Fonts/SFNS.ttf"
 do
   [[ -f "$f" ]] && sketchybar --load-font "$f"
 done
@@ -60,6 +61,23 @@ sketchybar --default \
   label.padding_left=4 \
   label.padding_right=4
 
+# --- Apple menu (opens Restart / Shut Down / …) ------------------------------
+# SF Symbols private-use glyphs don't render in sketchybar fonts — use a PNG.
+APPLE_ICON="${HOME}/.config/sketchybar/assets/apple.logo.png"
+sketchybar --add item apple.logo left \
+  --set apple.logo \
+    icon.drawing=off \
+    label.drawing=off \
+    background.image="${APPLE_ICON}" \
+    background.image.scale=0.45 \
+    background.color=0x00000000 \
+    background.border_width=0 \
+    background.drawing=on \
+    background.height=26 \
+    padding_left=4 \
+    padding_right=6 \
+    click_script="${PLUGIN_DIR}/apple_click.sh"
+
 # --- OmniWM spaces -----------------------------------------------------------
 # Requires OmniWM ipcEnabled = true. Live updates via omniwmctl watch below.
 sketchybar --add event omniwm_workspace_change
@@ -68,17 +86,17 @@ EMPTY_C="$(theme_argb "$MUTED")"
 ACTIVE_BG="$(theme_argb "$SURFACE_ALT")"
 
 for sid in 1 2 3 4 5 6 7 8 9; do
-  pad_l=1
-  pad_r=1
-  [[ "$sid" == "1" ]] && pad_l=6
-  [[ "$sid" == "9" ]] && pad_r=6
+  pad_l=3
+  pad_r=3
+  [[ "$sid" == "1" ]] && pad_l=8
+  [[ "$sid" == "9" ]] && pad_r=8
   sketchybar --add item "space.${sid}" left \
     --set "space.${sid}" \
       icon="${sid}" \
       icon.font="${LABEL_FONT}" \
       icon.color="${EMPTY_C}" \
-      icon.padding_left=6 \
-      icon.padding_right=6 \
+      icon.padding_left=8 \
+      icon.padding_right=8 \
       label.drawing=off \
       background.drawing=off \
       background.color="${ACTIVE_BG}" \
@@ -160,6 +178,19 @@ sketchybar --add item battery right \
                 padding_left=8 \
                 padding_right=8
 
+# OmniWM status menu — sit over OmniWM's extras icon so the dropdown opens under the cog.
+sketchybar --add item apps right \
+  --set apps \
+    icon=󰒓 \
+    icon.font="${ICON_FONT}" \
+    icon.color="${MUTED_C}" \
+    label.drawing=off \
+    icon.padding_left=10 \
+    icon.padding_right=10 \
+    padding_left=8 \
+    padding_right=8 \
+    click_script="/bin/bash ${PLUGIN_DIR}/apps_click.sh"
+
 sketchybar --add item volume right \
   --set volume script="${PLUGIN_DIR}/volume.sh" \
                click_script="open 'x-apple.systempreferences:com.apple.Sound-Settings.extension'" \
@@ -178,7 +209,18 @@ sketchybar --add item wifi right \
              label.color="${BAR_FG}" \
              label.font="${LABEL_FONT}" \
              padding_left=8 \
-             padding_right=8
+             padding_right=8 \
+             popup.align=right \
+             popup.horizontal=off \
+             popup.height=18 \
+             popup.y_offset=4 \
+             popup.background.color="${PILL_BG}" \
+             popup.background.corner_radius=9 \
+             popup.background.border_width=1 \
+             popup.background.border_color="${PILL_BORDER}" \
+             popup.background.padding_left=4 \
+             popup.background.padding_right=4 \
+  --subscribe wifi mouse.exited.global
 
 sketchybar --add item bluetooth right \
   --set bluetooth update_freq=10 script="${PLUGIN_DIR}/bluetooth.sh" \
