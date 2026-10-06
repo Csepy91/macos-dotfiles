@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.dotfiles.omniwm</string>
+	<key>Program</key>
+	<string>/Applications/OmniWM.app/Contents/MacOS/OmniWM</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>/tmp/omniwm.out.log</string>
+	<key>StandardErrorPath</key>
+	<string>/tmp/omniwm.err.log</string>
+</dict>
+</plist>

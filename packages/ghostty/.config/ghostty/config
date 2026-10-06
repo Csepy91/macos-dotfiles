@@ -1,0 +1,12 @@
+# Ghostty — Catppuccin Mocha (no Stylix)
+theme = Catppuccin Mocha
+background-opacity = 0.95
+window-padding-x = 8
+window-padding-y = 8
+window-decoration = true
+confirm-close-surface = false
+macos-option-as-alt = true
+font-family = JetBrainsMono Nerd Font
+font-size = 14
+cursor-style = block
+shell-integration-features = cursor,sudo,title

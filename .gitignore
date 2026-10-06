@@ -1,8 +1,7 @@
-result
-result-*
+Brewfile.lock.json
 .direnv/
-.pre-commit-config.yaml
 *.swp
 .DS_Store
-# Host-local overrides people might drop in
-hosts/*/secrets.nix
+# Generated Brewfile is committed optionally; lockfile is local
+# Host-local secrets people might drop in
+hosts/*/secrets.*

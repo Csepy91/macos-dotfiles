@@ -1,0 +1,9 @@
+# App launch / focus (adjust names to match installed apps)
+alt - b : open -a "Safari"
+alt - return : open -a "Ghostty"
+alt - c : open -a "Cursor"
+alt - t : open -a "Transmission"
+alt - f : open -a "Finder"
+
+# Spotlight (launcher deferred — keep system default discoverable)
+# cmd - space is Spotlight by default; do not steal it here.
