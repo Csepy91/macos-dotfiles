@@ -234,6 +234,12 @@ brew_bundle() {
   info "Installing packages with brew bundle…"
   brew bundle --file="$ROOT/Brewfile"
   ok "brew bundle complete"
+
+  # Surface missing rice binaries early (PATH may not include Homebrew yet).
+  if $RICE_skhd && ! skhd_bin >/dev/null; then
+    warn "skhd was selected but /opt/homebrew/bin/skhd is missing"
+    warn "Try: brew install --formula koekeishiya/formulae/skhd"
+  fi
 }
 
 # --- Stow --------------------------------------------------------------------
@@ -273,11 +279,53 @@ stow_packages() {
 
 # --- Services ----------------------------------------------------------------
 
+# Resolve Homebrew skhd binary (not on PATH until brew shellenv / new shell).
+skhd_bin() {
+  if [[ -x /opt/homebrew/bin/skhd ]]; then
+    print -r -- /opt/homebrew/bin/skhd
+  elif [[ -x /usr/local/bin/skhd ]]; then
+    print -r -- /usr/local/bin/skhd
+  elif (( $+commands[skhd] )); then
+    command -v skhd
+  else
+    return 1
+  fi
+}
+
+start_skhd() {
+  local bin plist label="com.dotfiles.skhd"
+  if ! bin="$(skhd_bin)"; then
+    warn "skhd binary not found — run: brew install koekeishiya/formulae/skhd"
+    return 1
+  fi
+  ok "skhd at $bin"
+
+  # skhd has no brew services plist; use its built-in launchd helper first.
+  if "$bin" --restart-service 2>/dev/null || "$bin" --start-service 2>/dev/null; then
+    ok "skhd launchd service started ($bin --start-service)"
+  else
+    warn "skhd --start-service unavailable — loading LaunchAgent"
+    plist="$HOME/Library/LaunchAgents/${label}.plist"
+    if [[ -f "$plist" ]]; then
+      launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
+      launchctl bootstrap "gui/$(id -u)" "$plist" 2>/dev/null \
+        || launchctl load -w "$plist" 2>/dev/null \
+        || warn "Could not load skhd LaunchAgent"
+    else
+      warn "Missing $plist — re-run stow for the skhd package"
+    fi
+  fi
+
+  info "skhd will not appear in Accessibility until it has run once."
+  info "If missing: System Settings → Privacy & Security → Accessibility → + → $bin"
+  open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" 2>/dev/null || true
+}
+
 start_services() {
   info "Starting rice services…"
 
   if $RICE_skhd; then
-    brew services restart skhd 2>/dev/null || brew services start skhd || warn "skhd service failed (grant Accessibility first)"
+    start_skhd || true
   fi
   if $RICE_sketchybar; then
     brew services restart sketchybar 2>/dev/null || brew services start sketchybar || warn "sketchybar service failed"
@@ -306,11 +354,13 @@ ${GRN}Install finished.${RST}
 
 Next steps:
   1. Read ${BLU}docs/PERMISSIONS.md${RST} and grant Accessibility / Input Monitoring.
-  2. Log out and back in if Mission Control "Displays have separate Spaces" changed.
-  3. Launch OmniWM, Ghostty, and confirm sketchybar / borders are running.
-  4. Launcher is Spotlight for now (Cmd+Space).
+  2. skhd is a CLI binary — add ${BLU}/opt/homebrew/bin/skhd${RST} with + if it is missing from the list.
+  3. Log out and back in if Mission Control "Displays have separate Spaces" changed.
+  4. Launch OmniWM, Ghostty, and confirm sketchybar / borders / skhd are running.
+  5. Launcher is Spotlight for now (Cmd+Space).
 
 Useful commands:
+  /opt/homebrew/bin/skhd --restart-service
   brew bundle --file $ROOT/Brewfile
   stow -d $ROOT/packages -t \$HOME -R zsh git ghostty …
   ./install.sh          # re-run interactive feature selection
