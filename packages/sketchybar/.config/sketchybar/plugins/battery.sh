@@ -6,7 +6,6 @@ ICON="󰁹"
 ICON_COLOR=""
 LABEL_COLOR=""
 
-# Optional theme colors when palette is available
 if [[ -f "${HOME}/.config/theme/colors.sh" ]]; then
   # shellcheck disable=SC1091
   source "${HOME}/.config/theme/colors.sh"

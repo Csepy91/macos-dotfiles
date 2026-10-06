@@ -28,6 +28,7 @@ brew "uv"
 brew "zoxide"
 brew "yazi"
 brew "FelixKratz/formulae/sketchybar", trusted: true
+brew "blueutil"
 brew "FelixKratz/formulae/borders", trusted: true
 brew "koekeishiya/formulae/skhd", trusted: true
 
@@ -35,9 +36,11 @@ cask "ghostty"
 cask "omniwm"
 cask "cursor"
 cask "sublime-text"
+cask "teamviewer"
 cask "transmission"
 cask "iina"
 cask "libreoffice"
+cask "nvidia-geforce-now"
 cask "font-jetbrains-mono-nerd-font"
 cask "font-fira-code-nerd-font"
 cask "font-hack-nerd-font"

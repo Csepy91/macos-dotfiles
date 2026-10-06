@@ -320,6 +320,20 @@ start_skhd() {
 start_services() {
   info "Starting rice services…"
 
+  if $RICE_sketchybar; then
+    # Auto-hide menu bar fights sketchybar: a top-edge click summons the
+    # native bar and drops sketchybar's windows (process stays alive).
+    # Both keys are required for "Never" — _HIHideMenuBar alone leaves
+    # "In Full Screen Only", so fill/some apps still flash the menu bar.
+    defaults write NSGlobalDomain _HIHideMenuBar -bool false 2>/dev/null \
+      && defaults write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true 2>/dev/null \
+      && defaults write com.apple.controlcenter AutoHideMenuBarOption -int 3 2>/dev/null \
+      && ok "macOS menu bar set to Never hide (needed for sketchybar)" \
+      || warn "Could not write menu-bar prefs — set Desktop & Dock → menu bar → Never"
+    killall SystemUIServer 2>/dev/null || true
+    killall ControlCenter 2>/dev/null || true
+  fi
+
   if $RICE_skhd; then
     start_skhd || true
   fi
@@ -351,9 +365,10 @@ ${GRN}Install finished.${RST}
 Next steps:
   1. Read ${BLU}docs/PERMISSIONS.md${RST} and grant Accessibility / Input Monitoring.
   2. skhd is a CLI binary — add ${BLU}/opt/homebrew/bin/skhd${RST} with + if it is missing from the list.
-  3. Log out and back in if Mission Control "Displays have separate Spaces" changed.
-  4. Launch OmniWM, Ghostty, and confirm sketchybar / borders / skhd are running.
-  5. Launcher is Spotlight for now (Cmd+Space).
+  3. Set Desktop & Dock → Automatically hide and show the menu bar → ${BLU}Never${RST} (required for sketchybar).
+  4. Log out and back in if Mission Control "Displays have separate Spaces" changed.
+  5. Launch OmniWM, Ghostty, and confirm sketchybar / borders / skhd are running.
+  6. Launcher is Spotlight for now (Cmd+Space).
 
 Useful commands:
   /opt/homebrew/bin/skhd --install-service && /opt/homebrew/bin/skhd --start-service

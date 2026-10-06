@@ -5,7 +5,7 @@ source "${HOME}/.config/theme/colors.sh"
 
 options=(
   style=round
-  width=6.0
+  width=3.0
   hidpi=on
   active_color="$(theme_argb "$BLUE_BRIGHT")"
   inactive_color="$(theme_argb "$BORDER")"

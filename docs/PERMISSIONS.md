@@ -143,11 +143,42 @@ or skhd may not receive key events in that terminal.
 4. Confirm **borders** draws on the focused window
 5. Test skhd: `Option+Return` → Ghostty, `Option+B` → Safari
 
+## macOS menu bar (required for sketchybar)
+
+If the system menu bar auto-hides, a click at the top edge summons it and
+**destroys sketchybar’s windows** (process stays running, bar gone until restart).
+Some apps / OmniWM fill also flash the menu bar when the setting is only
+**In Full Screen Only** instead of **Never**.
+
+Check (Never = both of these):
+
+```sh
+defaults read NSGlobalDomain _HIHideMenuBar
+# false
+defaults read NSGlobalDomain AppleMenuBarVisibleInFullscreen
+# true  (true = Never; false = In Full Screen Only when hide is false)
+```
+
+Fix:
+
+```sh
+./scripts/fix-sketchybar-menubar.sh
+# or:
+defaults write NSGlobalDomain _HIHideMenuBar -bool false
+defaults write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true
+defaults write com.apple.controlcenter AutoHideMenuBarOption -int 3
+killall SystemUIServer ControlCenter
+brew services restart sketchybar && sleep 1 && bash ~/.config/sketchybar/sketchybarrc
+```
+
+Also set **System Settings → Desktop & Dock → Automatically hide and show the
+menu bar → Never**.
+
 ## OmniWM vs sketchybar / jankyborders
 
-This rice **disables** OmniWM’s built-in borders and workspace bar
-(`~/.config/omniwm/settings.toml`). Do not re-enable them unless you turn off
-borders / sketchybar.
+This rice **disables** OmniWM’s built-in borders, workspace bar, and Hidden Bar
+(`~/.config/omniwm/settings.toml`). Do not re-enable workspace bar / borders
+unless you turn off borders / sketchybar.
 
 ## Launcher (deferred)
 

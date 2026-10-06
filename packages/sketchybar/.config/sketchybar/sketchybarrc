@@ -1,59 +1,193 @@
 #!/usr/bin/env bash
 # sketchybar — Cinematic Noir
+# topmost=on so the bar covers the native menu bar.
 PLUGIN_DIR="${HOME}/.config/sketchybar/plugins"
+FONT_DIR="${HOME}/Library/Fonts"
 
-# Master palette
 # shellcheck disable=SC1091
 source "${HOME}/.config/theme/colors.sh"
 
-BAR_BG="$(theme_argb "$BASE")"
 BAR_FG="$(theme_argb "$FG")"
-ACCENT="$(theme_argb "$BLUE")"
 MUTED_C="$(theme_argb "$MUTED")"
+PILL_BG="$(theme_argb "$SURFACE")"
+PILL_BORDER="$(theme_argb "$BLUE_BRIGHT")"
+# Translucent BASE (~88% opacity) so the native menu bar is covered but not solid black.
+BAR_BG="0xe0${BASE#\#}"
 
+# Ensure Nerd Fonts are registered for the sketchybar process (NF v3 rename).
+for f in \
+  "${FONT_DIR}/HackNerdFont-Bold.ttf" \
+  "${FONT_DIR}/HackNerdFont-Regular.ttf" \
+  "${FONT_DIR}/SymbolsNerdFont-Regular.ttf" \
+  "${FONT_DIR}/SymbolsNerdFontMono-Regular.ttf" \
+  "${FONT_DIR}/JetBrainsMonoNerdFont-Bold.ttf"
+do
+  [[ -f "$f" ]] && sketchybar --load-font "$f"
+done
+
+ICON_FONT="Symbols Nerd Font:Regular:14.0"
+LABEL_FONT="Hack Nerd Font:Bold:12.0"
+
+# topmost=on + translucent fill covers the native menu bar.
+# height 38; OmniWM gaps.outer.top clears bar/notch on fill
 sketchybar --bar \
-  height=32 \
-  blur_radius=20 \
+  height=38 \
   position=top \
   sticky=on \
-  padding_left=8 \
-  padding_right=8 \
+  topmost=on \
+  margin=0 \
+  y_offset=0 \
+  padding_left=10 \
+  padding_right=10 \
+  blur_radius=20 \
+  shadow=off \
   color="${BAR_BG}"
 
 sketchybar --default \
-  icon.font="JetBrainsMono Nerd Font:Bold:14.0" \
-  label.font="JetBrainsMono Nerd Font:Bold:12.0" \
+  icon.font="${ICON_FONT}" \
+  label.font="${LABEL_FONT}" \
   icon.color="${BAR_FG}" \
   label.color="${BAR_FG}" \
   padding_left=4 \
   padding_right=4 \
-  background.height=24 \
-  background.corner_radius=6
+  background.height=30 \
+  background.corner_radius=9 \
+  background.color="${PILL_BG}" \
+  background.border_width=1 \
+  background.border_color="${PILL_BORDER}" \
+  icon.padding_left=4 \
+  icon.padding_right=4 \
+  label.padding_left=4 \
+  label.padding_right=4
 
-sketchybar --add item apple.logo left \
-  --set apple.logo icon= icon.color="${ACCENT}" label.drawing=off
+# --- OmniWM spaces -----------------------------------------------------------
+# Requires OmniWM ipcEnabled = true. Live updates via omniwmctl watch below.
+sketchybar --add event omniwm_workspace_change
+
+EMPTY_C="$(theme_argb "$MUTED")"
+ACTIVE_BG="$(theme_argb "$SURFACE_ALT")"
+
+for sid in 1 2 3 4 5 6 7 8 9; do
+  pad_l=1
+  pad_r=1
+  [[ "$sid" == "1" ]] && pad_l=6
+  [[ "$sid" == "9" ]] && pad_r=6
+  sketchybar --add item "space.${sid}" left \
+    --set "space.${sid}" \
+      icon="${sid}" \
+      icon.font="${LABEL_FONT}" \
+      icon.color="${EMPTY_C}" \
+      icon.padding_left=6 \
+      icon.padding_right=6 \
+      label.drawing=off \
+      background.drawing=off \
+      background.color="${ACTIVE_BG}" \
+      background.corner_radius=7 \
+      background.height=24 \
+      padding_left="${pad_l}" \
+      padding_right="${pad_r}" \
+      click_script="/opt/homebrew/bin/omniwmctl command switch-workspace anywhere ${sid}"
+done
+
+sketchybar --add bracket spaces '/space\..*/' \
+  --set spaces \
+    background.color="${PILL_BG}" \
+    background.corner_radius=9 \
+    background.height=30 \
+    background.border_width=1 \
+    background.border_color="${PILL_BORDER}"
+
+# Hidden helper: one query refreshes every space.* item.
+sketchybar --add item spaces_helper left \
+  --set spaces_helper \
+    drawing=off \
+    updates=on \
+    script="${PLUGIN_DIR}/spaces.sh" \
+    update_freq=5 \
+  --subscribe spaces_helper omniwm_workspace_change
+
+# Keep a single omniwmctl watcher so space changes hit the bar immediately.
+CACHE_DIR="${HOME}/.cache/sketchybar"
+mkdir -p "${CACHE_DIR}"
+WATCH_PID_FILE="${CACHE_DIR}/omniwm-spaces.pid"
+if [[ -f "${WATCH_PID_FILE}" ]]; then
+  kill "$(cat "${WATCH_PID_FILE}")" 2>/dev/null || true
+fi
+(
+  exec /opt/homebrew/bin/omniwmctl watch \
+    active-workspace,windows-changed,layout-changed \
+    --reconnect \
+    --exec /opt/homebrew/bin/sketchybar --trigger omniwm_workspace_change
+) >/dev/null 2>&1 &
+echo $! >"${WATCH_PID_FILE}"
 
 sketchybar --add item front_app left \
   --set front_app script="${PLUGIN_DIR}/front_app.sh" \
                   icon.drawing=off \
+                  padding_left=8 \
+                  padding_right=8 \
+                  label.font="${LABEL_FONT}" \
                   label.color="${BAR_FG}" \
   --subscribe front_app front_app_switched
 
 sketchybar --add item clock right \
-  --set clock update_freq=10 script="${PLUGIN_DIR}/clock.sh" \
+  --set clock update_freq=30 script="${PLUGIN_DIR}/clock.sh" \
+              click_script="sketchybar --set clock popup.drawing=toggle" \
               icon=󰥔 \
+              icon.font="${ICON_FONT}" \
               icon.color="${MUTED_C}" \
-              label.color="${BAR_FG}"
+              label.color="${BAR_FG}" \
+              padding_left=8 \
+              padding_right=8 \
+              popup.align=right \
+              popup.horizontal=off \
+              popup.height=16 \
+              popup.y_offset=4 \
+              popup.background.color="${PILL_BG}" \
+              popup.background.corner_radius=9 \
+              popup.background.border_width=1 \
+              popup.background.border_color="${PILL_BORDER}" \
+              popup.background.padding_left=8 \
+              popup.background.padding_right=8 \
+  --subscribe clock mouse.exited.global
 
 sketchybar --add item battery right \
   --set battery update_freq=60 script="${PLUGIN_DIR}/battery.sh" \
+                click_script="open 'x-apple.systempreferences:com.apple.Battery-Settings.extension'" \
+                icon.font="${ICON_FONT}" \
                 icon.color="${MUTED_C}" \
-                label.color="${BAR_FG}"
+                label.color="${BAR_FG}" \
+                padding_left=8 \
+                padding_right=8
 
 sketchybar --add item volume right \
   --set volume script="${PLUGIN_DIR}/volume.sh" \
+               click_script="open 'x-apple.systempreferences:com.apple.Sound-Settings.extension'" \
+               icon.font="${ICON_FONT}" \
                icon.color="${MUTED_C}" \
                label.color="${BAR_FG}" \
+               padding_left=8 \
+               padding_right=8 \
   --subscribe volume volume_change
+
+sketchybar --add item wifi right \
+  --set wifi update_freq=2 script="${PLUGIN_DIR}/wifi.sh" \
+             click_script="${PLUGIN_DIR}/wifi_click.sh" \
+             icon.font="${ICON_FONT}" \
+             icon.color="${MUTED_C}" \
+             label.color="${BAR_FG}" \
+             label.font="${LABEL_FONT}" \
+             padding_left=8 \
+             padding_right=8
+
+sketchybar --add item bluetooth right \
+  --set bluetooth update_freq=10 script="${PLUGIN_DIR}/bluetooth.sh" \
+                  click_script="${PLUGIN_DIR}/bluetooth_click.sh" \
+                  icon.font="${ICON_FONT}" \
+                  icon.color="${MUTED_C}" \
+                  label.color="${BAR_FG}" \
+                  label.font="${LABEL_FONT}" \
+                  padding_left=8 \
+                  padding_right=8
 
 sketchybar --update

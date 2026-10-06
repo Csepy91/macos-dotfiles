@@ -111,7 +111,7 @@ features_brew_formulae() {
   $CLI_uv && out+=(uv)
   $CLI_zoxide && out+=(zoxide)
   $CLI_yazi && out+=(yazi)
-  $RICE_sketchybar && out+=(sketchybar)
+  $RICE_sketchybar && out+=(sketchybar blueutil)
   $RICE_jankyborders && out+=(borders)
   $RICE_skhd && out+=(skhd)
   print -r -- "${out[@]}"
