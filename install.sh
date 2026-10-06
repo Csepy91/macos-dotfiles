@@ -359,7 +359,8 @@ Useful commands:
   /opt/homebrew/bin/skhd --install-service && /opt/homebrew/bin/skhd --start-service
   /opt/homebrew/bin/skhd --restart-service   # only after the service plist exists
   brew bundle --file $ROOT/Brewfile
-  stow -d $ROOT/packages -t \$HOME -R zsh git ghostty …
+  stow -d $ROOT/packages -t \$HOME -R zsh theme git ghostty …
+  bat cache --build         # after first install / bat theme changes
   ./install.sh          # re-run interactive feature selection
 
 EOF

@@ -1,10 +1,13 @@
 #!/bin/bash
-# jankyborders — Catppuccin Mocha
+# jankyborders — Cinematic Noir
+# shellcheck disable=SC1091
+source "${HOME}/.config/theme/colors.sh"
+
 options=(
   style=round
   width=6.0
   hidpi=on
-  active_color=0xff89b4fa
-  inactive_color=0xff45475a
+  active_color="$(theme_argb "$BLUE_BRIGHT")"
+  inactive_color="$(theme_argb "$BORDER")"
 )
 borders "${options[@]}"

@@ -1,0 +1,17 @@
+{
+	"color_scheme": "Packages/User/CinematicNoir.sublime-color-scheme",
+	"theme": "Adaptive.sublime-theme",
+	"font_face": "JetBrains Mono",
+	"font_size": 14,
+	"line_padding_top": 2,
+	"line_padding_bottom": 2,
+	"highlight_line": true,
+	"caret_style": "smooth",
+	"draw_white_space": "selection",
+	"word_wrap": false,
+	"scroll_past_end": true,
+	"hardware_acceleration": "opengl",
+	"ignored_packages": [
+		"Vintage"
+	]
+}

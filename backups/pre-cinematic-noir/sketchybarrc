@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
-# sketchybar — Cinematic Noir
+# sketchybar — Catppuccin Mocha
 PLUGIN_DIR="${HOME}/.config/sketchybar/plugins"
 
-# Master palette
-# shellcheck disable=SC1091
-source "${HOME}/.config/theme/colors.sh"
-
-BAR_BG="$(theme_argb "$BASE")"
-BAR_FG="$(theme_argb "$FG")"
-ACCENT="$(theme_argb "$BLUE")"
-MUTED_C="$(theme_argb "$MUTED")"
+BAR_BG="0xff1e1e2e"
+BAR_FG="0xffcdd6f4"
+ACCENT="0xff89b4fa"
 
 sketchybar --bar \
   height=32 \
@@ -36,24 +31,17 @@ sketchybar --add item apple.logo left \
 sketchybar --add item front_app left \
   --set front_app script="${PLUGIN_DIR}/front_app.sh" \
                   icon.drawing=off \
-                  label.color="${BAR_FG}" \
   --subscribe front_app front_app_switched
 
 sketchybar --add item clock right \
   --set clock update_freq=10 script="${PLUGIN_DIR}/clock.sh" \
-              icon=󰥔 \
-              icon.color="${MUTED_C}" \
-              label.color="${BAR_FG}"
+              icon=󰥔
 
 sketchybar --add item battery right \
-  --set battery update_freq=60 script="${PLUGIN_DIR}/battery.sh" \
-                icon.color="${MUTED_C}" \
-                label.color="${BAR_FG}"
+  --set battery update_freq=60 script="${PLUGIN_DIR}/battery.sh"
 
 sketchybar --add item volume right \
   --set volume script="${PLUGIN_DIR}/volume.sh" \
-               icon.color="${MUTED_C}" \
-               label.color="${BAR_FG}" \
   --subscribe volume volume_change
 
 sketchybar --update
