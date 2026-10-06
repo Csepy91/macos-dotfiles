@@ -293,27 +293,23 @@ skhd_bin() {
 }
 
 start_skhd() {
-  local bin plist label="com.dotfiles.skhd"
+  local bin
   if ! bin="$(skhd_bin)"; then
     warn "skhd binary not found — run: brew install koekeishiya/formulae/skhd"
     return 1
   fi
   ok "skhd at $bin"
 
-  # skhd has no brew services plist; use its built-in launchd helper first.
-  if "$bin" --restart-service 2>/dev/null || "$bin" --start-service 2>/dev/null; then
-    ok "skhd launchd service started ($bin --start-service)"
+  # skhd manages ~/Library/LaunchAgents/com.koekeishiya.skhd.plist itself.
+  # --restart-service requires that plist already; --start-service installs it.
+  "$bin" --install-service 2>/dev/null || true
+  if "$bin" --start-service; then
+    ok "skhd service started"
+  elif "$bin" --restart-service; then
+    ok "skhd service restarted"
   else
-    warn "skhd --start-service unavailable — loading LaunchAgent"
-    plist="$HOME/Library/LaunchAgents/${label}.plist"
-    if [[ -f "$plist" ]]; then
-      launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
-      launchctl bootstrap "gui/$(id -u)" "$plist" 2>/dev/null \
-        || launchctl load -w "$plist" 2>/dev/null \
-        || warn "Could not load skhd LaunchAgent"
-    else
-      warn "Missing $plist — re-run stow for the skhd package"
-    fi
+    warn "skhd service failed — try: $bin --install-service && $bin --start-service"
+    return 1
   fi
 
   info "skhd will not appear in Accessibility until it has run once."
@@ -360,7 +356,8 @@ Next steps:
   5. Launcher is Spotlight for now (Cmd+Space).
 
 Useful commands:
-  /opt/homebrew/bin/skhd --restart-service
+  /opt/homebrew/bin/skhd --install-service && /opt/homebrew/bin/skhd --start-service
+  /opt/homebrew/bin/skhd --restart-service   # only after the service plist exists
   brew bundle --file $ROOT/Brewfile
   stow -d $ROOT/packages -t \$HOME -R zsh git ghostty …
   ./install.sh          # re-run interactive feature selection

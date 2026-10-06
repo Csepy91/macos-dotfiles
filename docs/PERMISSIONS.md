@@ -79,13 +79,15 @@ Enable for:
 ### skhd does not show up automatically
 
 `skhd` is a CLI binary, not an `.app`. macOS will not list it until you add it
-manually (or until it has crashed once requesting access).
+manually (or until it has run once requesting access).
 
-1. Start it (Homebrew has **no** `brew services` for skhd):
+1. Install + start its LaunchAgent (do **not** use `brew services` — skhd has none).
+   `--restart-service` fails until the plist exists; use `--start-service` first:
 
 ```sh
-/opt/homebrew/bin/skhd --start-service
-# or after config changes:
+/opt/homebrew/bin/skhd --install-service   # writes ~/Library/LaunchAgents/com.koekeishiya.skhd.plist
+/opt/homebrew/bin/skhd --start-service     # bootstrap + run (also auto-installs if missing)
+# later, after config changes:
 /opt/homebrew/bin/skhd --restart-service
 ```
 
@@ -158,5 +160,6 @@ OmniWM’s command palette (`Ctrl+Option+Space`) still works for windows/apps.
 ./install.sh --yes
 # or
 brew bundle --file ~/dotfiles/Brewfile && ./scripts/restow.sh
-/opt/homebrew/bin/skhd --restart-service
+/opt/homebrew/bin/skhd --install-service
+/opt/homebrew/bin/skhd --start-service
 ```
