@@ -40,6 +40,10 @@ The installer will:
 4. `brew bundle` + `stow` selected packages into `$HOME`
 5. Start sketchybar / borders / skhd / OmniWM services
 
+Homebrew 6+ requires tap trust for third-party formulae. The installer marks
+`FelixKratz/formulae/sketchybar` (and borders / skhd / the sketchybar font) as
+`trusted: true` in the Brewfile and runs `brew trust` before bundling.
+
 Then follow [docs/PERMISSIONS.md](docs/PERMISSIONS.md).
 
 ### Non-interactive
