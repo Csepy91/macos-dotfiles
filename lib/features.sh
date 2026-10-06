@@ -134,8 +134,8 @@ features_brew_casks() {
     font-fira-code-nerd-font
     font-hack-nerd-font
     font-symbols-only-nerd-font
-    font-sketchybar-app-font
   )
+  $RICE_sketchybar && out+=(font-sketchybar-app-font)
   print -r -- "${out[@]}"
 }
 
