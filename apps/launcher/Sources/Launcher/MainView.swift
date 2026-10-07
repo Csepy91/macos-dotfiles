@@ -30,17 +30,13 @@ struct MainView: View {
         .foregroundStyle(Color(hex: theme.textColor))
         .background(Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous))
-        .background(
-            GeometryReader { geo in
-                Color.clear
-                    .preference(key: PanelHeightKey.self, value: geo.size.height)
-            }
-        )
-        .onPreferenceChange(PanelHeightKey.self) { height in
-            onHeightChange(height)
-        }
+        .frame(height: idealHeight, alignment: .top)
         .onAppear {
             searchFocused = true
+            onHeightChange(idealHeight)
+        }
+        .onChange(of: idealHeight) { height in
+            onHeightChange(height)
         }
         .onChange(of: focusToken) { _ in
             searchFocused = true
@@ -48,6 +44,101 @@ struct MainView: View {
         .onExitCommand {
             onRequestClose()
         }
+    }
+
+    /// Fixed metrics so window height snaps to whole rows (no half-clipped last line).
+    private enum Metrics {
+        static let header: CGFloat = 52
+        static let divider: CGFloat = 1
+        static let listPadding: CGFloat = 16
+        static let emptyBody: CGFloat = 52
+        static let accessibilityBody: CGFloat = 148
+        static let appRow: CGFloat = 48
+        static let appRowSpacing: CGFloat = 2
+        static let menuSection: CGFloat = 22
+        static let menuItem: CGFloat = 30
+    }
+
+    /// Window height from content — not GeometryReader (that only sees the panel's current frame).
+    private var idealHeight: CGFloat {
+        let maxH = CGFloat(configManager.config.dimensions.maxHeight)
+        let chrome = Metrics.header + Metrics.divider
+        let bodyMax = max(maxH - chrome, 0)
+
+        if viewModel.mode == .menu && !viewModel.accessibilityTrusted {
+            return chrome + min(Metrics.accessibilityBody, bodyMax)
+        }
+        if viewModel.results.isEmpty {
+            return chrome + min(Metrics.emptyBody, bodyMax)
+        }
+
+        return chrome + fittedListHeight(maxBody: bodyMax)
+    }
+
+    /// Largest height ≤ `maxBody` that ends on a whole row boundary.
+    private func fittedListHeight(maxBody: CGFloat) -> CGFloat {
+        if viewModel.mode == .menu {
+            var height = Metrics.listPadding
+            var fitted = Metrics.listPadding
+            for row in displayRows {
+                let rowH: CGFloat
+                switch row {
+                case .section: rowH = Metrics.menuSection
+                case .item: rowH = Metrics.menuItem
+                }
+                if height + rowH > maxBody { break }
+                height += rowH
+                fitted = height
+            }
+            return fitted
+        }
+
+        let count = viewModel.results.count
+        var fittedCount = 0
+        while fittedCount < count {
+            let next = Metrics.listPadding
+                + CGFloat(fittedCount + 1) * Metrics.appRow
+                + CGFloat(fittedCount) * Metrics.appRowSpacing
+            if next > maxBody { break }
+            fittedCount += 1
+        }
+        guard fittedCount > 0 else { return min(Metrics.listPadding + Metrics.appRow, maxBody) }
+        return Metrics.listPadding
+            + CGFloat(fittedCount) * Metrics.appRow
+            + CGFloat(fittedCount - 1) * Metrics.appRowSpacing
+    }
+
+    private enum DisplayRow: Identifiable {
+        case section(String)
+        case item(LauncherItem)
+
+        var id: String {
+            switch self {
+            case .section(let name): return "section:\(name)"
+            case .item(let item): return item.id
+            }
+        }
+    }
+
+    /// Apps stay flat; menu commands group under their top-level menu title.
+    private var displayRows: [DisplayRow] {
+        guard viewModel.mode == .menu else {
+            return viewModel.results.map { .item($0) }
+        }
+        var rows: [DisplayRow] = []
+        var lastRoot: String?
+        for item in viewModel.results {
+            guard case .menu(let cmd) = item else {
+                rows.append(.item(item))
+                continue
+            }
+            if cmd.rootMenu != lastRoot {
+                rows.append(.section(cmd.rootMenu))
+                lastRoot = cmd.rootMenu
+            }
+            rows.append(.item(item))
+        }
+        return rows
     }
 
     // MARK: - Sections
@@ -97,28 +188,42 @@ struct MainView: View {
     }
 
     private var resultsList: some View {
-        ScrollViewReader { proxy in
+        let listBody = idealHeight - Metrics.header - Metrics.divider
+        return ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 2) {
-                    ForEach(Array(viewModel.results.enumerated()), id: \.element.id) { index, item in
-                        ResultRow(
-                            item: item,
-                            isSelected: index == viewModel.selectedIndex,
-                            theme: theme
-                        )
-                        .id(item.id)
-                        .onTapGesture {
-                            viewModel.selectIndex(index)
-                            if viewModel.activateSelection() {
-                                onRequestClose()
+                LazyVStack(alignment: .leading, spacing: viewModel.mode == .menu ? 0 : Metrics.appRowSpacing) {
+                    ForEach(displayRows) { row in
+                        switch row {
+                        case .section(let name):
+                            Text(name)
+                                .font(.system(size: max(theme.fontSize - 2, 11), weight: .semibold))
+                                .foregroundStyle(Color(hex: theme.subtextColor))
+                                .padding(.horizontal, 12)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                                .frame(height: Metrics.menuSection)
+                        case .item(let item):
+                            ResultRow(
+                                item: item,
+                                isSelected: viewModel.results.firstIndex(of: item) == viewModel.selectedIndex,
+                                theme: theme,
+                                indented: viewModel.mode == .menu,
+                                height: viewModel.mode == .menu ? Metrics.menuItem : Metrics.appRow
+                            )
+                            .id(item.id)
+                            .onTapGesture {
+                                guard let index = viewModel.results.firstIndex(of: item) else { return }
+                                viewModel.selectIndex(index)
+                                if viewModel.activateSelection() {
+                                    onRequestClose()
+                                }
                             }
                         }
                     }
                 }
                 .padding(.horizontal, 8)
-                .padding(.vertical, 8)
+                .padding(.vertical, Metrics.listPadding / 2)
             }
-            .frame(maxHeight: configManager.config.dimensions.maxHeight - 64)
+            .frame(height: listBody)
             .onChange(of: viewModel.selectedIndex) { idx in
                 guard viewModel.results.indices.contains(idx) else { return }
                 withAnimation(.easeOut(duration: 0.12)) {
@@ -146,14 +251,11 @@ struct MainView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Accessibility required")
                 .font(.system(size: theme.fontSize, weight: .semibold))
-            Text("Grant Accessibility access so Launcher can read and activate the frontmost app’s menu bar.")
+            Text("macOS isn’t allowing this Launcher build to read the menu bar. If Launcher already appears enabled in Privacy → Accessibility, remove that row, add ~/Applications/Launcher.app again, then toggle it on (rebuilds invalidate old grants).")
                 .foregroundStyle(Color(hex: theme.subtextColor))
                 .fixedSize(horizontal: false, vertical: true)
             Button("Open System Settings") {
-                _ = MenuBarScanner.isTrusted(prompt: true)
-                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                    NSWorkspace.shared.open(url)
-                }
+                viewModel.requestAccessibilityAccess()
             }
             .buttonStyle(.borderedProminent)
             .tint(Color(hex: theme.selectionText))
@@ -169,25 +271,32 @@ private struct ResultRow: View {
     let item: LauncherItem
     let isSelected: Bool
     let theme: ThemeConfig
+    var indented: Bool = false
+    var height: CGFloat = 48
 
     var body: some View {
-        HStack(spacing: 12) {
-            icon
-                .frame(width: 28, height: 28)
+        HStack(spacing: indented ? 8 : 12) {
+            if !indented {
+                icon
+                    .frame(width: 28, height: 28)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
                     .foregroundStyle(Color(hex: isSelected ? theme.selectionText : theme.textColor))
                     .lineLimit(1)
-                Text(item.subtitle)
-                    .font(.system(size: max(theme.fontSize - 2, 11)))
-                    .foregroundStyle(Color(hex: theme.subtextColor))
-                    .lineLimit(1)
+                if !indented, !item.subtitle.isEmpty {
+                    Text(item.subtitle)
+                        .font(.system(size: max(theme.fontSize - 2, 11)))
+                        .foregroundStyle(Color(hex: theme.subtextColor))
+                        .lineLimit(1)
+                }
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.leading, indented ? 22 : 10)
+        .padding(.trailing, 10)
+        .frame(height: height)
         .background(
             RoundedRectangle(cornerRadius: max(theme.cornerRadius - 4, 6), style: .continuous)
                 .fill(isSelected ? Color(hex: theme.selectionBackground) : Color.clear)
@@ -212,18 +321,10 @@ private struct ResultRow: View {
     }
 }
 
-// MARK: - Preference
-
-private struct PanelHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 120
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 // MARK: - Key handling monitor attached at AppController level
 
 enum LauncherKeyRouter {
+    @MainActor
     static func handle(
         event: NSEvent,
         viewModel: LauncherViewModel,

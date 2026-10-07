@@ -26,6 +26,7 @@ features_set_defaults() {
   RICE_skhd=true
   RICE_ghostty=true
   RICE_launcher=true
+  RICE_calendar=true
 
   APPS_cursor=true
   APPS_sublimeText=true
@@ -49,7 +50,7 @@ features_load() {
     val="${line#*=}"
     case "$key" in
       CLI_bat|CLI_btop|CLI_duti|CLI_eza|CLI_fd|CLI_fzf|CLI_gh|CLI_git|CLI_ncdu|CLI_nvim|CLI_ripgrep|CLI_starship|CLI_tldr|CLI_uv|CLI_zoxide|CLI_yazi|\
-      RICE_omniwm|RICE_sketchybar|RICE_jankyborders|RICE_skhd|RICE_ghostty|RICE_launcher|\
+      RICE_omniwm|RICE_sketchybar|RICE_jankyborders|RICE_skhd|RICE_ghostty|RICE_launcher|RICE_calendar|\
       APPS_cursor|APPS_sublimeText|APPS_teamviewer|APPS_transmission|APPS_iina|APPS_libreoffice|APPS_geForceNow)
         eval "$key=$([[ "$val" == "true" ]] && echo true || echo false)"
         ;;
@@ -85,6 +86,7 @@ RICE_jankyborders=${RICE_jankyborders}
 RICE_skhd=${RICE_skhd}
 RICE_ghostty=${RICE_ghostty}
 RICE_launcher=${RICE_launcher}
+RICE_calendar=${RICE_calendar}
 APPS_cursor=${APPS_cursor}
 APPS_sublimeText=${APPS_sublimeText}
 APPS_teamviewer=${APPS_teamviewer}
@@ -163,6 +165,7 @@ features_stow_packages() {
   $RICE_jankyborders && out+=(borders)
   $RICE_sketchybar && out+=(sketchybar)
   $RICE_launcher && out+=(launcher)
+  $RICE_calendar && out+=(calendar)
   $APPS_sublimeText && out+=(sublime)
   print -r -- "${out[@]}"
 }

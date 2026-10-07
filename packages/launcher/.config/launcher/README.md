@@ -26,8 +26,9 @@ launcher --menu      # open in Menu Search
 launcher --reload    # re-read config.json
 ```
 
-Rice default: `behavior.hotkey` is `"off"` so skhd owns `Alt+R` / `Alt+Shift+R`
-without a Carbon double-fire. Set e.g. `"cmd+space"` for a standalone global hotkey.
+Rice default: `behavior.hotkey` is `"alt+r"` (Carbon) so OmniWM cannot swallow
+the chord. skhd owns `Alt+Shift+R` → Menu Search only — do not also bind
+`Alt+R` in skhdrc or toggle will double-fire (show then instantly hide).
 
 ## Build / install
 

@@ -14,6 +14,8 @@ swift build -c release
 ```
 
 Requires macOS 13+, Xcode / CLT, and Accessibility for Menu Search.
+`./scripts/install-launcher.sh` signs with a stable `dotfiles-Launcher` cert so
+that grant survives rebuilds (ad-hoc signing does not).
 
 ## Layout
 
@@ -29,9 +31,11 @@ Requires macOS 13+, Xcode / CLT, and Accessibility for Menu Search.
 | `HotkeyManager.swift` | Carbon global hotkey (opt-in; rice uses skhd) |
 | `IPCServer.swift` | Unix socket IPC + single-instance ping |
 
-## skhd
+## Hotkeys
+
+`Alt+R` is registered by Launcher itself (`behavior.hotkey` in config.json).
+skhd only owns Menu Search:
 
 ```text
-alt - r : ~/.config/skhd/open-launcher.sh
-alt - shift - r : ~/.config/skhd/open-launcher-menu.sh
+alt + shift - r : ~/.config/skhd/open-launcher-menu.sh
 ```

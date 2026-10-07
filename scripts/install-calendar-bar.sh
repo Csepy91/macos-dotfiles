@@ -1,29 +1,27 @@
 #!/usr/bin/env zsh
-# Build Launcher.app (SwiftPM) → ~/Applications, install CLI shim + LaunchAgent.
+# Build CalendarBar.app (SwiftPM) → ~/Applications, install CLI shim + LaunchAgent.
 set -euo pipefail
 
 ROOT="${0:A:h:h}"
-SRC="$ROOT/apps/launcher"
-DEST_APP="${LAUNCHER_APP_DIR:-$HOME/Applications}/Launcher.app"
-BIN_DIR="${LAUNCHER_BIN_DIR:-$HOME/.local/bin}"
-PLIST_DST="$HOME/Library/LaunchAgents/com.dotfiles.launcher.plist"
-LABEL="com.dotfiles.launcher"
-EXEC="$DEST_APP/Contents/MacOS/Launcher"
-# Self-signed identity so Accessibility TCC survives rebuilds (adhoc pins cdhash).
-CODESIGN_IDENTITY="${LAUNCHER_CODESIGN_IDENTITY:-dotfiles-Launcher}"
+SRC="$ROOT/apps/calendar-bar"
+DEST_APP="${CALENDAR_BAR_APP_DIR:-$HOME/Applications}/CalendarBar.app"
+BIN_DIR="${CALENDAR_BAR_BIN_DIR:-$HOME/.local/bin}"
+PLIST_DST="$HOME/Library/LaunchAgents/com.dotfiles.calendar-bar.plist"
+LABEL="com.dotfiles.calendar-bar"
+EXEC="$DEST_APP/Contents/MacOS/CalendarBar"
+# Self-signed identity so Calendar TCC survives rebuilds (adhoc pins cdhash).
+CODESIGN_IDENTITY="${CALENDAR_BAR_CODESIGN_IDENTITY:-dotfiles-CalendarBar}"
 
 info() { print -r -- "==> $*"; }
 ok() { print -r -- "✓ $*"; }
 warn() { print -r -- "! $*" >&2; }
 die() { print -r -- "error: $*" >&2; exit 1; }
 
-[[ "$(uname -s)" == "Darwin" ]] || die "Launcher builds only on macOS."
+[[ "$(uname -s)" == "Darwin" ]] || die "CalendarBar builds only on macOS."
 (( $+commands[swift] )) || die "swift not found — install Xcode or the Command Line Tools."
 
 # ---------------------------------------------------------------------------
 # Codesigning — prefer a stable self-signed cert over ad-hoc.
-# Ad-hoc (`codesign -s -`) pins TCC to the binary cdhash; every rebuild looks
-# like a different app while System Settings still shows a ghost "enabled" row.
 # ---------------------------------------------------------------------------
 login_keychain() {
   local keychain="$HOME/Library/Keychains/login.keychain-db"
@@ -31,14 +29,11 @@ login_keychain() {
   print -r -- "$keychain"
 }
 
-# Extract CN from find-identity lines. Must consume the rest of the line —
-# otherwise `(CSSMERR_TP_NOT_TRUSTED)` leaks into the identity name.
 identity_names_from_find() {
   sed -n 's/.*"\([^"]*\)".*/\1/p'
 }
 
 find_codesign_identity() {
-  # Prefer identities macOS already trusts for code signing.
   security find-identity -p codesigning -v 2>/dev/null \
     | identity_names_from_find \
     | grep -Fx "$CODESIGN_IDENTITY" \
@@ -49,9 +44,6 @@ cert_exists() {
   security find-certificate -c "$CODESIGN_IDENTITY" >/dev/null 2>&1
 }
 
-# Mark the self-signed cert trusted for code signing (user keychain).
-# Without this, find-identity lists it as CSSMERR_TP_NOT_TRUSTED and install
-# falls back to ad-hoc — which is what forces Accessibility re-grants.
 trust_codesign_cert() {
   local keychain tmp
   keychain="$(login_keychain)"
@@ -60,7 +52,6 @@ trust_codesign_cert() {
     rm -rf "$tmp"
     return 1
   fi
-  # Either flag set works across macOS versions; ignore benign param errors.
   security add-trusted-cert -r trustRoot -p codeSign -k "$keychain" "$tmp/cert.pem" >/dev/null 2>&1 \
     || security add-trusted-cert -d -r trustAsRoot -p codeSign -k "$keychain" "$tmp/cert.pem" >/dev/null 2>&1 \
     || true
@@ -124,7 +115,6 @@ EOF
     rm -rf "$tmp"
     return 1
   fi
-  # Allow codesign to use the key non-interactively in this session.
   security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" \
     "$keychain" >/dev/null 2>&1 || true
   security add-trusted-cert -r trustRoot -p codeSign -k "$keychain" "$tmp/cert.pem" >/dev/null 2>&1 \
@@ -139,16 +129,17 @@ sign_app() {
   local identity="$1"
   codesign --force --deep --sign "$identity" \
     --identifier "$LABEL" \
+    --entitlements "$SRC/Resources/CalendarBar.entitlements" \
     "$DEST_APP"
 }
 
-info "Building Launcher (release)…"
+info "Building CalendarBar (release)…"
 (
   cd "$SRC"
-  swift build -c release --product Launcher
+  swift build -c release --product CalendarBar
 )
 
-BIN="$SRC/.build/release/Launcher"
+BIN="$SRC/.build/release/CalendarBar"
 [[ -x "$BIN" ]] || die "Build succeeded but binary missing at $BIN"
 
 info "Assembling $DEST_APP"
@@ -164,36 +155,48 @@ if (( $+commands[codesign] )); then
   if [[ -n "${IDENTITY:-}" ]]; then
     if sign_app "$IDENTITY"; then
       SIGNED_WITH="$IDENTITY"
-      ok "Signed with $IDENTITY (Accessibility grant survives rebuilds)"
+      ok "Signed with $IDENTITY (Calendar grant survives rebuilds)"
     else
       warn "Signing with $IDENTITY failed — falling back to ad-hoc"
-      codesign --force --deep --sign - "$DEST_APP" 2>/dev/null \
+      codesign --force --deep --sign - \
+        --entitlements "$SRC/Resources/CalendarBar.entitlements" \
+        "$DEST_APP" 2>/dev/null \
         || warn "codesign failed"
     fi
   else
-    warn "No codesign identity — using ad-hoc (Accessibility resets every rebuild)"
+    warn "No codesign identity — using ad-hoc (Calendar access may reset every rebuild)"
     warn "Create one: Keychain Access → Certificate Assistant → Code Signing → name '$CODESIGN_IDENTITY'"
-    codesign --force --deep --sign - "$DEST_APP" 2>/dev/null \
+    codesign --force --deep --sign - \
+      --entitlements "$SRC/Resources/CalendarBar.entitlements" \
+      "$DEST_APP" 2>/dev/null \
       || warn "codesign failed"
   fi
   codesign -d -r- "$DEST_APP" 2>&1 | sed -n 's/^designated => /  DR: /p' || true
 fi
 
-# Refresh Launch Services so System Settings can resolve the bundle.
 if [[ -x /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister ]]; then
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST_APP" 2>/dev/null || true
 fi
 
 mkdir -p "$BIN_DIR"
-# Prefer the stowed shim if present; otherwise write one that points at the app.
-if [[ ! -e "$BIN_DIR/launcher" ]]; then
-  cat >"$BIN_DIR/launcher" <<EOF
+# Prefer the stowed shim from packages/calendar. Only write a fallback when the
+# target is missing — never replace an existing regular file (that breaks stow).
+if [[ -L "$BIN_DIR/calendar-bar" ]]; then
+  ok "CLI → $BIN_DIR/calendar-bar (stowed)"
+elif [[ -e "$BIN_DIR/calendar-bar" ]]; then
+  warn "CLI shim exists as a regular file at $BIN_DIR/calendar-bar"
+  warn "Remove it and restow so packages/calendar can own the link:"
+  warn "  rm -f \"$BIN_DIR/calendar-bar\" && ./scripts/restow.sh"
+elif [[ -f "$ROOT/packages/calendar/.local/bin/calendar-bar" ]]; then
+  warn "No CLI shim yet — stow the calendar package (./install.sh or ./scripts/restow.sh)"
+else
+  cat >"$BIN_DIR/calendar-bar" <<EOF
 #!/bin/sh
 exec "$EXEC" "\$@"
 EOF
-  chmod +x "$BIN_DIR/launcher"
+  chmod +x "$BIN_DIR/calendar-bar"
+  ok "CLI → $BIN_DIR/calendar-bar (local fallback shim)"
 fi
-ok "CLI → $BIN_DIR/launcher (stowed or local shim)"
 
 info "Writing LaunchAgent $LABEL"
 mkdir -p "$(dirname "$PLIST_DST")"
@@ -217,9 +220,9 @@ cat >"$PLIST_DST" <<EOF
 	<key>KeepAlive</key>
 	<true/>
 	<key>StandardOutPath</key>
-	<string>/tmp/launcher.out.log</string>
+	<string>/tmp/calendar-bar.out.log</string>
 	<key>StandardErrorPath</key>
-	<string>/tmp/launcher.err.log</string>
+	<string>/tmp/calendar-bar.err.log</string>
 </dict>
 </plist>
 EOF
@@ -230,12 +233,12 @@ launchctl bootstrap "gui/$(id -u)" "$PLIST_DST" 2>/dev/null \
   || launchctl load -w "$PLIST_DST" 2>/dev/null \
   || warn "Could not load LaunchAgent — start manually: open \"$DEST_APP\""
 
-ok "Launcher installed"
+ok "CalendarBar installed"
 print -r -- "  App:    $DEST_APP"
-print -r -- "  CLI:    launcher --toggle"
+print -r -- "  CLI:    calendar-bar --toggle"
 print -r -- "  Signed: $SIGNED_WITH"
-print -r -- "  Grant Accessibility to Launcher (see docs/PERMISSIONS.md)"
+print -r -- "  Grant Calendars to CalendarBar (see docs/PERMISSIONS.md)"
 if [[ "$SIGNED_WITH" != "ad-hoc" ]]; then
-  print -r -- "  First time after switching off ad-hoc: remove any old Launcher rows in"
-  print -r -- "  Accessibility, then add ~/Applications/Launcher.app once."
+  print -r -- "  First time after switching off ad-hoc: remove any old CalendarBar rows in"
+  print -r -- "  Privacy → Calendars, then add ~/Applications/CalendarBar.app once."
 fi

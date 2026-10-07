@@ -1,0 +1,36 @@
+# CalendarBar
+
+Minimal notch calendar + EventKit agenda popover.
+
+Spawns as a floating panel beneath the display notch. Styles hot-reload from
+this `config.json`. Built-in fallback theme is Catppuccin Macchiato when the
+file is missing; the stowed defaults below follow the rice **Cinematic Noir**
+palette (`~/.config/theme/`).
+
+## Keys
+
+| Key | Action |
+| --- | --- |
+| `←` / `→` | Previous / next day |
+| `↑` / `↓` | Move by week |
+| `⌥←` / `⌥→` | Previous / next month |
+| Click day | Select + show agenda |
+| `Esc` | Hide |
+
+## CLI (sketchybar)
+
+```sh
+calendar-bar --toggle    # show / hide
+calendar-bar --reload    # re-read config.json
+```
+
+Rice default: sketchybar clock click → `calendar-bar --toggle`.
+
+## Build / install
+
+```sh
+./scripts/install-calendar-bar.sh
+```
+
+Installs `~/Applications/CalendarBar.app`, a `calendar-bar` shim on `PATH`, and
+loads the LaunchAgent so the agent is ready for sketchybar.

@@ -72,7 +72,7 @@ Enable for:
 | App | How it appears / path |
 | --- | --- |
 | OmniWM | **OmniWM** |
-| Launcher | **Launcher** (`~/Applications/Launcher.app`) — menu-bar search |
+| Launcher | **Launcher** (`~/Applications/Launcher.app`) — menu-bar search; see note below |
 | skhd | often **missing until you add it** — see below |
 | sketchybar | often add via **+** → Go to Folder |
 | borders | often add via **+** → Go to Folder |
@@ -187,12 +187,12 @@ Notch-spawned keyboard launcher (`~/Applications/Launcher.app`).
 
 | Hotkey | Action |
 | --- | --- |
-| `Alt+R` | Toggle Apps mode (`launcher --toggle` via skhd) |
+| `Alt+R` | Toggle Apps mode (Launcher Carbon hotkey) |
 | `Alt+Shift+R` | Open Menu Bar Search (`launcher --menu` via skhd) |
 | `Tab` / leading `:` | Switch Apps ↔ Menu inside the panel |
 
-Carbon `behavior.hotkey` defaults to `"off"` so it does not fight skhd. Set a
-value like `"cmd+space"` only when running without skhd.
+`behavior.hotkey` defaults to `"alt+r"`. Keep that chord out of skhdrc to avoid
+a double-fire. Grant **Accessibility** to **Launcher** for the hotkey + menu search.
 
 Build / rebuild:
 
@@ -203,10 +203,50 @@ Build / rebuild:
 Config (hot-reloads): `~/.config/launcher/config.json`
 
 Grant **Accessibility** to **Launcher** so Menu Search can read and activate
-menu items. The panel prompts if permission is missing.
+menu items. The panel shows a banner if permission is missing.
+
+**Ghost grants after rebuild:** Accessibility is bound to the app’s code
+signature, not just its name. Ad-hoc signed builds get a new identity every
+`./scripts/install-launcher.sh`, so Settings can still show Launcher enabled
+while Menu Search is denied. Fix once:
+
+1. Run `./scripts/install-launcher.sh` — it should print `Signed: dotfiles-Launcher`
+   (not `ad-hoc`). The script creates/trusts that cert so rebuilds keep the grant.
+2. In **Privacy & Security → Accessibility**, remove every old **Launcher** row.
+3. Click **+** → add `~/Applications/Launcher.app` → toggle **on**.
+4. `launchctl kickstart -k gui/$(id -u)/com.dotfiles.launcher` (or log out/in).
+
+If install still says `Signed: ad-hoc`, open **Keychain Access**, find
+`dotfiles-Launcher`, Get Info → Trust → **Code Signing: Always Trust**, then
+re-run the install script and repeat steps 2–4 once.
 
 OmniWM’s built-in palette remains on `Control+Option+Space`. Spotlight
 (`Cmd+Space`) is unchanged unless you set Launcher’s `behavior.hotkey` to it.
+
+## CalendarBar
+
+Notch-spawned calendar + agenda (`~/Applications/CalendarBar.app`).
+
+| Trigger | Action |
+| --- | --- |
+| Sketchybar clock click | Toggle panel (`calendar-bar --toggle`) |
+| `calendar-bar --reload` | Re-read `~/.config/calendar/config.json` |
+
+Build / rebuild:
+
+```sh
+./scripts/install-calendar-bar.sh
+```
+
+Config (hot-reloads): `~/.config/calendar/config.json`
+
+Grant **Calendars** to **CalendarBar** so the agenda can read EventKit events.
+The panel shows a clean unauthorized state with a Settings link if permission
+is missing.
+
+**Ghost grants after rebuild:** same as Launcher — prefer the
+`dotfiles-CalendarBar` signing cert created by the install script, then add
+`~/Applications/CalendarBar.app` once under Privacy → Calendars.
 
 ## Re-run
 

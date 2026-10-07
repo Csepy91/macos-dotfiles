@@ -1,5 +1,5 @@
 #!/bin/sh
-# Open / toggle the notch Launcher (Alt+R via skhd).
+# Open / toggle the notch Launcher (manual / fallback; rice uses Carbon Alt+R).
 set -eu
 
 LAUNCHER="${LAUNCHER_BIN:-$HOME/.local/bin/launcher}"

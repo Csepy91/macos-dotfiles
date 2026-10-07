@@ -71,7 +71,7 @@ apply_selection() {
   local -a all_keys
   case "$prefix" in
     CLI) all_keys=(bat btop duti eza fd fzf gh git ncdu nvim ripgrep starship tldr uv zoxide yazi) ;;
-    RICE) all_keys=(omniwm sketchybar jankyborders skhd ghostty launcher) ;;
+    RICE) all_keys=(omniwm sketchybar jankyborders skhd ghostty launcher calendar) ;;
     APPS) all_keys=(cursor sublimeText teamviewer transmission iina libreoffice geForceNow) ;;
   esac
   local key
@@ -117,7 +117,7 @@ gum_selected_args() {
 
 interactive_select() {
   local -a cli_keys=(bat btop duti eza fd fzf gh git ncdu nvim ripgrep starship tldr uv zoxide yazi)
-  local -a rice_keys=(omniwm sketchybar jankyborders skhd ghostty launcher)
+  local -a rice_keys=(omniwm sketchybar jankyborders skhd ghostty launcher calendar)
   local -a apps_keys=(cursor sublimeText teamviewer transmission iina libreoffice geForceNow)
   local sel
   local -a gum_selected
@@ -294,6 +294,9 @@ stow_packages() {
   if [[ -f "$HOME/.local/bin/launcher" ]]; then
     chmod +x "$HOME/.local/bin/launcher"
   fi
+  if [[ -f "$HOME/.local/bin/calendar-bar" ]]; then
+    chmod +x "$HOME/.local/bin/calendar-bar"
+  fi
 }
 
 # --- Post-stow CLI setup -----------------------------------------------------
@@ -455,6 +458,21 @@ install_launcher_app() {
   fi
 }
 
+# Notch calendar (SwiftPM) → ~/Applications/CalendarBar.app + LaunchAgent.
+install_calendar_bar_app() {
+  if ! $RICE_calendar; then
+    return 0
+  fi
+  local script="$ROOT/scripts/install-calendar-bar.sh"
+  [[ -x "$script" ]] || chmod +x "$script"
+  info "Building / installing CalendarBar…"
+  if "$script"; then
+    ok "CalendarBar ready (sketchybar clock click)"
+  else
+    warn "CalendarBar install failed — run: ./scripts/install-calendar-bar.sh"
+  fi
+}
+
 # --- Wallpaper ---------------------------------------------------------------
 
 apply_wallpaper() {
@@ -511,12 +529,13 @@ start_skhd() {
   ok "skhd at $bin"
 
   # skhd manages ~/Library/LaunchAgents/com.koekeishiya.skhd.plist itself.
-  # --restart-service requires that plist already; --start-service installs it.
+  # Prefer restart so a freshly stowed skhdrc (e.g. Alt+R → launcher) is loaded;
+  # --start-service alone is a no-op when skhd is already running.
   "$bin" --install-service 2>/dev/null || true
-  if "$bin" --start-service; then
-    ok "skhd service started"
-  elif "$bin" --restart-service; then
+  if "$bin" --restart-service 2>/dev/null; then
     ok "skhd service restarted"
+  elif "$bin" --start-service; then
+    ok "skhd service started"
   else
     warn "skhd service failed — try: $bin --install-service && $bin --start-service"
     return 1
@@ -573,6 +592,16 @@ start_services() {
         || warn "Could not load Launcher LaunchAgent — run: ./scripts/install-launcher.sh"
     fi
   fi
+  if $RICE_calendar; then
+    local label="com.dotfiles.calendar-bar"
+    local plist="$HOME/Library/LaunchAgents/${label}.plist"
+    if [[ -f "$plist" ]]; then
+      launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
+      launchctl bootstrap "gui/$(id -u)" "$plist" 2>/dev/null \
+        || launchctl load -w "$plist" 2>/dev/null \
+        || warn "Could not load CalendarBar LaunchAgent — run: ./scripts/install-calendar-bar.sh"
+    fi
+  fi
 
   ok "Service start attempted"
 }
@@ -589,6 +618,7 @@ Next steps:
   4. Log out and back in if Mission Control "Displays have separate Spaces" changed.
   5. Launch OmniWM, Ghostty, and confirm sketchybar / borders / skhd are running.
   6. Launcher: Alt+R toggles the notch panel; Alt+Shift+R opens Menu Search.
+  7. CalendarBar: click the sketchybar clock (or \`calendar-bar --toggle\`).
 
 Useful commands:
   /opt/homebrew/bin/skhd --install-service && /opt/homebrew/bin/skhd --start-service
@@ -597,6 +627,7 @@ Useful commands:
   stow -d $ROOT/packages -t \$HOME -R zsh theme git ghostty …
   ./scripts/install-cli-apps.sh   # rebuild ~/Applications/{Yazi,Btop}.app
   ./scripts/install-launcher.sh   # rebuild ~/Applications/Launcher.app
+  ./scripts/install-calendar-bar.sh  # rebuild ~/Applications/CalendarBar.app
   ./scripts/apply-duti.sh         # re-apply Sublime/IINA default handlers
   gh auth login                   # if skipped during --yes
   ./install.sh          # re-run interactive feature selection
@@ -654,6 +685,7 @@ if ! $SKIP_BUNDLE; then
   post_install_cli
   install_cli_apps
   install_launcher_app
+  install_calendar_bar_app
   apply_wallpaper
   start_services
 else
@@ -661,6 +693,7 @@ else
   post_install_cli
   install_cli_apps
   install_launcher_app
+  install_calendar_bar_app
   apply_wallpaper
   warn "Skipped brew bundle / services (--no-bundle)"
 fi

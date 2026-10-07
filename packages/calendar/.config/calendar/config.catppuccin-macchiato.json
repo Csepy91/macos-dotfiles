@@ -1,7 +1,7 @@
 {
   "theme": {
     "font_family": "SF Pro Text",
-    "font_size": 12.5,
+    "font_size": 13.0,
     "corner_radius": 12.0,
     "border_width": 1.5,
     "background_color": "#24273a",
@@ -9,15 +9,15 @@
     "border_color": "#b7bdf8",
     "text_color": "#cad3f5",
     "subtext_color": "#a5adcb",
-    "selection_background": "#363a4f",
-    "selection_text": "#b7bdf8"
+    "accent_color": "#f5a97f",
+    "today_background": "#363a4f"
   },
   "dimensions": {
-    "width": 480,
-    "max_height": 540
+    "width": 380,
+    "max_height": 450
   },
   "behavior": {
     "hide_on_blur": true,
-    "hotkey": "off"
+    "show_events": true
   }
 }

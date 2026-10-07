@@ -150,24 +150,13 @@ sketchybar --add item front_app left \
 
 sketchybar --add item clock right \
   --set clock update_freq=30 script="${PLUGIN_DIR}/clock.sh" \
-              click_script="sketchybar --set clock popup.drawing=toggle" \
+              click_script="${PLUGIN_DIR}/open-calendar.sh" \
               icon=󰥔 \
               icon.font="${ICON_FONT}" \
               icon.color="${MUTED_C}" \
               label.color="${BAR_FG}" \
               padding_left=8 \
-              padding_right=8 \
-              popup.align=right \
-              popup.horizontal=off \
-              popup.height=16 \
-              popup.y_offset=4 \
-              popup.background.color="${PILL_BG}" \
-              popup.background.corner_radius=9 \
-              popup.background.border_width=1 \
-              popup.background.border_color="${PILL_BORDER}" \
-              popup.background.padding_left=8 \
-              popup.background.padding_right=8 \
-  --subscribe clock mouse.exited.global
+              padding_right=8
 
 sketchybar --add item battery right \
   --set battery update_freq=60 script="${PLUGIN_DIR}/battery.sh" \

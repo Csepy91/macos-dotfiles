@@ -4,9 +4,20 @@ import Foundation
 
 struct MenuCommand: Identifiable, Hashable {
     let id: String
+    /// Leaf menu item title (e.g. "New Text File").
     let title: String
+    /// Top-level menu (e.g. "File").
+    let rootMenu: String
+    /// Intermediate path between root and title (e.g. "Open Recent"), if any.
+    let nest: String
+    /// Full "File › … › Title" path — used for search ranking.
     let path: String
     let element: AXUIElement
+
+    /// Single-line label under the section header.
+    var displayTitle: String {
+        nest.isEmpty ? title : "\(nest) › \(title)"
+    }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -19,12 +30,16 @@ struct MenuCommand: Identifiable, Hashable {
 
 /// Recursively walks the frontmost app's menu bar via Accessibility APIs.
 enum MenuBarScanner {
+    /// Live TCC check. Prefer `WithOptions(nil)` over `AXIsProcessTrusted()` —
+    /// the latter can cache a stale deny across System Settings toggles.
+    /// Never pass `prompt: true` automatically; ghost Accessibility rows make
+    /// the system dialog lie after ad-hoc re-signs.
     static func isTrusted(prompt: Bool = false) -> Bool {
         if prompt {
             let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             return AXIsProcessTrustedWithOptions(opts)
         }
-        return AXIsProcessTrusted()
+        return AXIsProcessTrustedWithOptions(nil)
     }
 
     static func scanFrontmost() -> [MenuCommand] {
@@ -33,8 +48,6 @@ enum MenuBarScanner {
     }
 
     static func scan(app: NSRunningApplication) -> [MenuCommand] {
-        guard isTrusted() else { return [] }
-
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
         var menuBarRef: AnyObject?
         let status = AXUIElementCopyAttributeValue(
@@ -98,11 +111,15 @@ enum MenuBarScanner {
            title != "-",
            nextPath.count >= 2
         {
+            let rootMenu = nextPath[0]
+            let nest = nextPath.dropFirst().dropLast().joined(separator: " › ")
             let fullPath = nextPath.joined(separator: " › ")
             commands.append(
                 MenuCommand(
                     id: "\(appName)::\(fullPath)",
                     title: title,
+                    rootMenu: rootMenu,
+                    nest: nest,
                     path: fullPath,
                     element: element
                 )

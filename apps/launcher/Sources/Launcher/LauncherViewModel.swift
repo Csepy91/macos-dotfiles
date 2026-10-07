@@ -22,14 +22,14 @@ enum LauncherItem: Identifiable, Hashable {
     var title: String {
         switch self {
         case .app(let app): return app.name
-        case .menu(let cmd): return cmd.title
+        case .menu(let cmd): return cmd.displayTitle
         }
     }
 
     var subtitle: String {
         switch self {
         case .app(let app): return app.path
-        case .menu(let cmd): return cmd.path
+        case .menu: return ""
         }
     }
 
@@ -83,7 +83,7 @@ final class LauncherViewModel: ObservableObject {
         }
 
         if mode == .menu {
-            refreshMenuCommands(prompt: true)
+            refreshMenuCommands()
         }
 
         recompute(query: query, mode: mode)
@@ -101,7 +101,7 @@ final class LauncherViewModel: ObservableObject {
         query = ""
         selectedIndex = 0
         if mode == .menu {
-            refreshMenuCommands(prompt: true)
+            refreshMenuCommands()
         }
         recompute(query: query, mode: mode)
     }
@@ -124,21 +124,44 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    private func refreshMenuCommands(prompt: Bool) {
-        if prompt || !accessibilityTrusted {
-            accessibilityTrusted = MenuBarScanner.isTrusted(prompt: prompt)
+    /// Opens Privacy → Accessibility and polls for a live grant. Does **not**
+    /// call the system prompt — after ad-hoc rebuilds Settings can show Launcher
+    /// as enabled while TCC still denies the current binary.
+    func requestAccessibilityAccess() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
         }
+        Task { @MainActor in
+            for _ in 0..<30 {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                if MenuBarScanner.isTrusted(prompt: false) {
+                    refreshMenuCommands()
+                    recompute(query: query, mode: mode)
+                    return
+                }
+            }
+        }
+    }
+
+    private func refreshMenuCommands() {
+        accessibilityTrusted = MenuBarScanner.isTrusted(prompt: false)
         // Bail if the remembered app is gone.
         if let targetApp, targetApp.isTerminated {
             self.targetApp = nil
             menuCommands = []
             return
         }
+        let scanned: [MenuCommand]
         if let targetApp {
-            menuCommands = MenuBarScanner.scan(app: targetApp)
+            scanned = MenuBarScanner.scan(app: targetApp)
         } else {
-            menuCommands = MenuBarScanner.scanFrontmost()
+            scanned = MenuBarScanner.scanFrontmost()
         }
+        // A successful menu-bar read is ground truth if the API flag lags.
+        if !scanned.isEmpty {
+            accessibilityTrusted = true
+        }
+        menuCommands = scanned
     }
 
     func moveSelection(by delta: Int) {
@@ -199,7 +222,7 @@ final class LauncherViewModel: ObservableObject {
             effectiveQuery = String(query.dropFirst())
             if self.mode != .menu {
                 self.mode = .menu
-                refreshMenuCommands(prompt: true)
+                refreshMenuCommands()
             }
         }
 
@@ -210,7 +233,7 @@ final class LauncherViewModel: ObservableObject {
             items = ranked.map { .app($0) }
         case .menu:
             if menuCommands.isEmpty {
-                refreshMenuCommands(prompt: false)
+                refreshMenuCommands()
             }
             let ranked = FuzzySearch.ranked(query: effectiveQuery, items: menuCommands, key: \.path)
             items = ranked.map { .menu($0) }

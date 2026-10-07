@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import SwiftUI
 
-/// Visual tokens for the launcher panel. Defaults mirror Catppuccin Macchiato.
+/// Visual tokens for the calendar panel. Defaults mirror Catppuccin Macchiato.
 struct ThemeConfig: Codable, Equatable {
     var fontFamily: String
     var fontSize: Double
@@ -13,8 +13,8 @@ struct ThemeConfig: Codable, Equatable {
     var borderColor: String
     var textColor: String
     var subtextColor: String
-    var selectionBackground: String
-    var selectionText: String
+    var accentColor: String
+    var todayBackground: String
 
     enum CodingKeys: String, CodingKey {
         case fontFamily = "font_family"
@@ -26,14 +26,14 @@ struct ThemeConfig: Codable, Equatable {
         case borderColor = "border_color"
         case textColor = "text_color"
         case subtextColor = "subtext_color"
-        case selectionBackground = "selection_background"
-        case selectionText = "selection_text"
+        case accentColor = "accent_color"
+        case todayBackground = "today_background"
     }
 
     /// Catppuccin Macchiato — used when config.json is missing or incomplete.
     static let catppuccinMacchiato = ThemeConfig(
         fontFamily: "SF Pro Text",
-        fontSize: 12.5,
+        fontSize: 13.0,
         cornerRadius: 12.0,
         borderWidth: 1.5,
         backgroundColor: "#24273a",
@@ -41,8 +41,8 @@ struct ThemeConfig: Codable, Equatable {
         borderColor: "#b7bdf8",
         textColor: "#cad3f5",
         subtextColor: "#a5adcb",
-        selectionBackground: "#363a4f",
-        selectionText: "#b7bdf8"
+        accentColor: "#f5a97f",
+        todayBackground: "#363a4f"
     )
 }
 
@@ -55,28 +55,27 @@ struct DimensionsConfig: Codable, Equatable {
         case maxHeight = "max_height"
     }
 
-    static let `default` = DimensionsConfig(width: 480, maxHeight: 540)
+    static let `default` = DimensionsConfig(width: 380, maxHeight: 450)
 }
 
 struct BehaviorConfig: Codable, Equatable {
     var hideOnBlur: Bool
-    var hotkey: String
+    var showEvents: Bool
 
     enum CodingKeys: String, CodingKey {
         case hideOnBlur = "hide_on_blur"
-        case hotkey
+        case showEvents = "show_events"
     }
 
-    /// Carbon hotkey is opt-in. Rice defaults to skhd (`Alt+R`); set e.g. `cmd+space` for standalone use.
-    static let `default` = BehaviorConfig(hideOnBlur: true, hotkey: "off")
+    static let `default` = BehaviorConfig(hideOnBlur: true, showEvents: true)
 }
 
-struct LauncherConfig: Codable, Equatable {
+struct CalendarConfig: Codable, Equatable {
     var theme: ThemeConfig
     var dimensions: DimensionsConfig
     var behavior: BehaviorConfig
 
-    static let `default` = LauncherConfig(
+    static let `default` = CalendarConfig(
         theme: .catppuccinMacchiato,
         dimensions: .default,
         behavior: .default

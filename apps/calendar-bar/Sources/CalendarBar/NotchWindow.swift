@@ -3,21 +3,19 @@ import SwiftUI
 
 /// Floating NSPanel anchored directly beneath the primary display notch.
 final class NotchWindow: NSPanel {
-    private var config: LauncherConfig
+    private var config: CalendarConfig
     private var blurView: NSVisualEffectView?
-    private(set) var hostingView: NSHostingView<MainView>?
+    private(set) var hostingView: NSHostingView<CalendarView>?
 
-    init(config: LauncherConfig, rootView: MainView) {
+    init(config: CalendarConfig, rootView: CalendarView) {
         self.config = config
         let size = NSSize(
             width: config.dimensions.width,
-            // Header + two result rows so the panel isn't stuck at a clipped height.
-            height: min(170, config.dimensions.maxHeight)
+            height: min(320, config.dimensions.maxHeight)
         )
 
         super.init(
             contentRect: NSRect(origin: .zero, size: size),
-            // Borderless key window — must accept first-responder for the search field.
             styleMask: [.borderless, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -66,14 +64,14 @@ final class NotchWindow: NSPanel {
         reposition(animated: false)
     }
 
-    func setRootView(_ rootView: MainView) {
+    func setRootView(_ rootView: CalendarView) {
         hostingView?.rootView = rootView
     }
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
-    func apply(config: LauncherConfig) {
+    func apply(config: CalendarConfig) {
         self.config = config
         if let blurView {
             applyChrome(to: blurView)
@@ -81,7 +79,7 @@ final class NotchWindow: NSPanel {
         reposition(animated: false)
     }
 
-    func showAnimated(focusSearch: @escaping () -> Void) {
+    func showAnimated(focus: @escaping () -> Void) {
         reposition(animated: false)
         alphaValue = 0
         let target = frame
@@ -96,7 +94,7 @@ final class NotchWindow: NSPanel {
             animator().alphaValue = 1
             animator().setFrame(target, display: true)
         }, completionHandler: {
-            focusSearch()
+            focus()
         })
     }
 
@@ -115,7 +113,7 @@ final class NotchWindow: NSPanel {
 
     func updateHeight(_ contentHeight: CGFloat) {
         let width = config.dimensions.width
-        let height = min(max(contentHeight, 72), config.dimensions.maxHeight)
+        let height = min(max(contentHeight, 120), config.dimensions.maxHeight)
         var newFrame = frame
         let screen = anchorScreen()
         let topY = notchBottomY(on: screen)
@@ -128,7 +126,7 @@ final class NotchWindow: NSPanel {
     func reposition(animated: Bool) {
         let screen = anchorScreen()
         let width = config.dimensions.width
-        let height = frame.height > 0 ? frame.height : 170
+        let height = frame.height > 0 ? frame.height : 320
         let topY = notchBottomY(on: screen)
         let origin = NSPoint(x: screen.frame.midX - width / 2, y: topY - height)
         let rect = NSRect(origin: origin, size: NSSize(width: width, height: height))
@@ -151,7 +149,6 @@ final class NotchWindow: NSPanel {
         let visible = screen.visibleFrame
         let menuBarHeight = max(frame.maxY - visible.maxY, 0)
 
-        // Prefer safe-area inset when the display has a notch.
         let notchInset: CGFloat
         if #available(macOS 12.0, *) {
             notchInset = screen.safeAreaInsets.top
@@ -170,7 +167,6 @@ final class NotchWindow: NSPanel {
         effect.layer?.cornerRadius = radius
         effect.layer?.masksToBounds = true
 
-        // Tint the vibrancy with the configured background color + opacity.
         let tint = NSColor(
             hex: config.theme.backgroundColor,
             alpha: CGFloat(config.theme.backgroundOpacity)

@@ -5,10 +5,11 @@ alt - c : open -a "Cursor"
 alt - t : open -a "Transmission"
 alt - f : open -a "Finder"
 
-# Launcher (notch panel) — Apps mode / Menu Search
-# Requires: ./scripts/install-launcher.sh + Accessibility for Launcher.app
-alt - r : ~/.config/skhd/open-launcher.sh
-alt - shift - r : ~/.config/skhd/open-launcher-menu.sh
+# Launcher (notch panel) — Menu Search via skhd.
+# Alt+R toggle is owned by Launcher.app Carbon hotkey (config behavior.hotkey)
+# so OmniWM's event tap cannot swallow it. Requires Accessibility for Launcher.
+# Note: combine modifiers with `+` (skhd rejects `alt - shift - r`).
+alt + shift - r : ~/.config/skhd/open-launcher-menu.sh
 
 # OmniWM built-in command palette (optional fallback)
-# alt - shift - p : ~/.config/skhd/open-command-palette-applications.sh
+# alt + shift - p : ~/.config/skhd/open-command-palette-applications.sh
