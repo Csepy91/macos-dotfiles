@@ -71,7 +71,7 @@ apply_selection() {
   local -a all_keys
   case "$prefix" in
     CLI) all_keys=(bat btop duti eza fd fzf gh git ncdu nvim ripgrep starship tldr uv zoxide yazi) ;;
-    RICE) all_keys=(omniwm sketchybar jankyborders skhd ghostty) ;;
+    RICE) all_keys=(omniwm sketchybar jankyborders skhd ghostty launcher) ;;
     APPS) all_keys=(cursor sublimeText teamviewer transmission iina libreoffice geForceNow) ;;
   esac
   local key
@@ -117,7 +117,7 @@ gum_selected_args() {
 
 interactive_select() {
   local -a cli_keys=(bat btop duti eza fd fzf gh git ncdu nvim ripgrep starship tldr uv zoxide yazi)
-  local -a rice_keys=(omniwm sketchybar jankyborders skhd ghostty)
+  local -a rice_keys=(omniwm sketchybar jankyborders skhd ghostty launcher)
   local -a apps_keys=(cursor sublimeText teamviewer transmission iina libreoffice geForceNow)
   local sel
   local -a gum_selected
@@ -263,6 +263,7 @@ stow_packages() {
 
   mkdir -p \
     "$HOME/.config" \
+    "$HOME/.local/bin" \
     "$HOME/.local/share/zsh/site-functions" \
     "$HOME/Library/LaunchAgents" \
     "$HOME/Library/Logs/omniwm"
@@ -286,6 +287,12 @@ stow_packages() {
   fi
   if [[ -f "$HOME/.config/borders/bordersrc" ]]; then
     chmod +x "$HOME/.config/borders/bordersrc"
+  fi
+  if [[ -d "$HOME/.config/skhd" ]]; then
+    chmod +x "$HOME/.config/skhd"/*.sh 2>/dev/null || true
+  fi
+  if [[ -f "$HOME/.local/bin/launcher" ]]; then
+    chmod +x "$HOME/.local/bin/launcher"
   fi
 }
 
@@ -433,6 +440,21 @@ install_cli_apps() {
   fi
 }
 
+# Notch launcher (SwiftPM) → ~/Applications/Launcher.app + LaunchAgent.
+install_launcher_app() {
+  if ! $RICE_launcher; then
+    return 0
+  fi
+  local script="$ROOT/scripts/install-launcher.sh"
+  [[ -x "$script" ]] || chmod +x "$script"
+  info "Building / installing Launcher…"
+  if "$script"; then
+    ok "Launcher ready (Alt+R via skhd)"
+  else
+    warn "Launcher install failed — run: ./scripts/install-launcher.sh"
+  fi
+}
+
 # --- Wallpaper ---------------------------------------------------------------
 
 apply_wallpaper() {
@@ -541,6 +563,16 @@ start_services() {
         || warn "Could not load OmniWM LaunchAgent — open OmniWM.app manually"
     fi
   fi
+  if $RICE_launcher; then
+    local label="com.dotfiles.launcher"
+    local plist="$HOME/Library/LaunchAgents/${label}.plist"
+    if [[ -f "$plist" ]]; then
+      launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
+      launchctl bootstrap "gui/$(id -u)" "$plist" 2>/dev/null \
+        || launchctl load -w "$plist" 2>/dev/null \
+        || warn "Could not load Launcher LaunchAgent — run: ./scripts/install-launcher.sh"
+    fi
+  fi
 
   ok "Service start attempted"
 }
@@ -556,7 +588,7 @@ Next steps:
   3. Set Desktop & Dock → Automatically hide and show the menu bar → ${BLU}Never${RST} (required for sketchybar).
   4. Log out and back in if Mission Control "Displays have separate Spaces" changed.
   5. Launch OmniWM, Ghostty, and confirm sketchybar / borders / skhd are running.
-  6. Launcher: OmniWM command palette (Alt+R → Applications via skhd).
+  6. Launcher: Alt+R toggles the notch panel; Alt+Shift+R opens Menu Search.
 
 Useful commands:
   /opt/homebrew/bin/skhd --install-service && /opt/homebrew/bin/skhd --start-service
@@ -564,6 +596,7 @@ Useful commands:
   brew bundle --file $ROOT/Brewfile
   stow -d $ROOT/packages -t \$HOME -R zsh theme git ghostty …
   ./scripts/install-cli-apps.sh   # rebuild ~/Applications/{Yazi,Btop}.app
+  ./scripts/install-launcher.sh   # rebuild ~/Applications/Launcher.app
   ./scripts/apply-duti.sh         # re-apply Sublime/IINA default handlers
   gh auth login                   # if skipped during --yes
   ./install.sh          # re-run interactive feature selection
@@ -620,12 +653,14 @@ if ! $SKIP_BUNDLE; then
   stow_packages
   post_install_cli
   install_cli_apps
+  install_launcher_app
   apply_wallpaper
   start_services
 else
   stow_packages
   post_install_cli
   install_cli_apps
+  install_launcher_app
   apply_wallpaper
   warn "Skipped brew bundle / services (--no-bundle)"
 fi

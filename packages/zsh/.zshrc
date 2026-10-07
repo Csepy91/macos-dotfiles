@@ -7,6 +7,9 @@ elif [ -x /usr/local/bin/brew ]; then
   eval "$(/usr/local/bin/brew shellenv)"
 fi
 
+# User shims (Launcher CLI, etc.)
+export PATH="${HOME}/.local/bin:${PATH}"
+
 # Cinematic Noir — master palette + CLI colors (before plugins that read styles)
 if [[ -f "${HOME}/.config/theme/colors.sh" ]]; then
   # shellcheck disable=SC1091

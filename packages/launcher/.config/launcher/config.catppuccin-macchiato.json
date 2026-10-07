@@ -1,0 +1,23 @@
+{
+  "theme": {
+    "font_family": "SF Pro Text",
+    "font_size": 14.0,
+    "corner_radius": 12.0,
+    "border_width": 1.5,
+    "background_color": "#24273a",
+    "background_opacity": 0.90,
+    "border_color": "#b7bdf8",
+    "text_color": "#cad3f5",
+    "subtext_color": "#a5adcb",
+    "selection_background": "#363a4f",
+    "selection_text": "#b7bdf8"
+  },
+  "dimensions": {
+    "width": 620,
+    "max_height": 420
+  },
+  "behavior": {
+    "hide_on_blur": true,
+    "hotkey": "cmd+space"
+  }
+}

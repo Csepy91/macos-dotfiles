@@ -5,6 +5,10 @@ alt - c : open -a "Cursor"
 alt - t : open -a "Transmission"
 alt - f : open -a "Finder"
 
-# Launcher: OmniWM command palette → Applications tab
-# (script: ipcEnabled + Accessibility for osascript)
-alt - r : ~/.config/skhd/open-command-palette-applications.sh
+# Launcher (notch panel) — Apps mode / Menu Search
+# Requires: ./scripts/install-launcher.sh + Accessibility for Launcher.app
+alt - r : ~/.config/skhd/open-launcher.sh
+alt - shift - r : ~/.config/skhd/open-launcher-menu.sh
+
+# OmniWM built-in command palette (optional fallback)
+# alt - shift - p : ~/.config/skhd/open-command-palette-applications.sh
