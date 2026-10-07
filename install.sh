@@ -277,6 +277,38 @@ stow_packages() {
   fi
 }
 
+# --- Wallpaper ---------------------------------------------------------------
+
+apply_wallpaper() {
+  local src="$ROOT/configs/wallpapers/default.png"
+  if [[ ! -f "$src" ]]; then
+    warn "No wallpaper at configs/wallpapers/default.png — skip"
+    return 0
+  fi
+
+  local dest_dir="$HOME/.config/wallpaper"
+  local dest="$dest_dir/default.png"
+  mkdir -p "$dest_dir"
+  cp -f "$src" "$dest"
+
+  info "Setting desktop wallpaper → $dest"
+  if /usr/bin/osascript <<EOF
+set img to POSIX file "$dest"
+tell application "System Events"
+  repeat with d in (a reference to every desktop)
+    try
+      set picture of d to img
+    end try
+  end repeat
+end tell
+EOF
+  then
+    ok "Wallpaper set on all desktops"
+  else
+    warn "Could not set wallpaper via System Events"
+  fi
+}
+
 # --- Services ----------------------------------------------------------------
 
 # Resolve Homebrew skhd binary (not on PATH until brew shellenv / new shell).
@@ -428,9 +460,11 @@ write_brewfile
 if ! $SKIP_BUNDLE; then
   brew_bundle
   stow_packages
+  apply_wallpaper
   start_services
 else
   stow_packages
+  apply_wallpaper
   warn "Skipped brew bundle / services (--no-bundle)"
 fi
 

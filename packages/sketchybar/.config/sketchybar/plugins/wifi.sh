@@ -94,7 +94,7 @@ else:
   fi
   printf '%s %s %s\n' "$NOW" "$RX" "$TX" >"$CACHE_FILE"
 
-  LABEL="↓${DOWN_MBPS} ↑${UP_MBPS} Mb"
+  LABEL="↓${DOWN_MBPS}Mbps ↑${UP_MBPS}Mbps"
 fi
 
 args=(--set "$NAME" icon="$ICON" label="$LABEL")
