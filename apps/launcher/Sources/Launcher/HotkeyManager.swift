@@ -8,7 +8,10 @@ final class HotkeyManager {
 
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
-    private var currentSpec: String = ""
+    /// Spec that is currently registered successfully (empty when off / failed).
+    private var registeredSpec: String = ""
+    /// Last requested spec, even if registration failed (allows retry).
+    private var requestedSpec: String = ""
 
     var onHotkey: (() -> Void)?
 
@@ -16,20 +19,41 @@ final class HotkeyManager {
 
     func update(from spec: String) {
         let normalized = spec.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard normalized != currentSpec else { return }
-        unregister()
-        currentSpec = normalized
-        guard !normalized.isEmpty, normalized != "none", normalized != "off" else { return }
-        register(spec: normalized)
-    }
+        requestedSpec = normalized
+        let disabled = normalized.isEmpty || normalized == "none" || normalized == "off"
 
-    private func register(spec: String) {
-        guard let parsed = Self.parse(spec) else {
-            NSLog("[Launcher] Unrecognized hotkey: \(spec)")
+        if disabled {
+            if hotKeyRef != nil || handlerRef != nil || !registeredSpec.isEmpty {
+                unregister()
+                registeredSpec = ""
+            }
             return
         }
 
-        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        // Already live for this spec — skip. Failed prior attempts leave registeredSpec
+        // empty so the same string can be retried on the next config reload.
+        if normalized == registeredSpec, hotKeyRef != nil {
+            return
+        }
+
+        unregister()
+        registeredSpec = ""
+        if register(spec: normalized) {
+            registeredSpec = normalized
+        }
+    }
+
+    @discardableResult
+    private func register(spec: String) -> Bool {
+        guard let parsed = Self.parse(spec) else {
+            NSLog("[Launcher] Unrecognized hotkey: \(spec)")
+            return false
+        }
+
+        var eventType = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: UInt32(kEventHotKeyPressed)
+        )
         let userData = Unmanaged.passUnretained(self).toOpaque()
 
         let status = InstallEventHandler(
@@ -62,7 +86,7 @@ final class HotkeyManager {
 
         guard status == noErr else {
             NSLog("[Launcher] InstallEventHandler failed: \(status)")
-            return
+            return false
         }
 
         let hotKeyID = EventHotKeyID(signature: OSType(0x4C4E4348), id: 1) // 'LNCH'
@@ -76,7 +100,14 @@ final class HotkeyManager {
         )
         if registerStatus != noErr {
             NSLog("[Launcher] RegisterEventHotKey failed: \(registerStatus)")
+            if let handlerRef {
+                RemoveEventHandler(handlerRef)
+                self.handlerRef = nil
+            }
+            hotKeyRef = nil
+            return false
         }
+        return true
     }
 
     private func unregister() {

@@ -8,17 +8,20 @@ enum LauncherMain {
         let args = Array(CommandLine.arguments.dropFirst())
         let flags = CLIFlags.parse(args)
 
-        // If a daemon is already running, forward the CLI command and exit.
-        if flags.wantsRemoteAction {
-            let command = flags.ipcCommand
-            if IPCServer.send(command) {
-                return
+        // Always prefer talking to an existing daemon (CLI actions + bare launch).
+        if IPCServer.isDaemonRunning() {
+            if flags.wantsRemoteAction {
+                _ = IPCServer.send(flags.ipcCommand)
             }
-            // No daemon yet — fall through and become it, applying the action on launch.
+            // Bare second launch: stay single-instance, do nothing.
+            return
         }
 
         let app = NSApplication.shared
-        let delegate = AppDelegate(initialCommand: flags.ipcCommand, registerHotkey: !flags.noHotkey)
+        // When becoming the daemon after a CLI action with no prior instance,
+        // apply that action once launch finishes. Bare LaunchAgent start stays hidden.
+        let initial: IPCCommand? = flags.wantsRemoteAction ? flags.ipcCommand : nil
+        let delegate = AppDelegate(initialCommand: initial, registerHotkey: !flags.noHotkey)
         app.delegate = delegate
         app.setActivationPolicy(.accessory)
         app.run()
@@ -92,13 +95,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: NotchWindow?
     private let windowDelegate = NotchWindowDelegate()
     private var localMonitor: Any?
+    private var workspaceObservers: [NSObjectProtocol] = []
     private var focusToken = UUID()
     private var cancellables = Set<AnyCancellable>()
-    private var initialCommand: IPCCommand
+    private var initialCommand: IPCCommand?
     private var registerHotkey: Bool
     private var isShowing = false
+    /// Ignores resign-key while the panel is animating open / claiming focus.
+    private var suppressHideOnBlur = false
 
-    init(initialCommand: IPCCommand, registerHotkey: Bool) {
+    init(initialCommand: IPCCommand?, registerHotkey: Bool) {
         self.initialCommand = initialCommand
         self.registerHotkey = registerHotkey
         super.init()
@@ -134,17 +140,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        // Warm the app index in the background.
         viewModel.refreshApps()
+        installWorkspaceObservers()
 
-        // Apply the CLI action that started this process (if any).
-        // Bare launch (no flags) stays hidden as a menu-bar agent.
-        if CommandLine.arguments.count > 1 {
+        if let initialCommand {
             handle(initialCommand)
         }
+    }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        removeKeyMonitor()
+        removeWorkspaceObservers()
+    }
+
+    private func installWorkspaceObservers() {
+        removeWorkspaceObservers()
         let center = NSWorkspace.shared.notificationCenter
-        center.addObserver(
+
+        let launchObs = center.addObserver(
             forName: NSWorkspace.didLaunchApplicationNotification,
             object: nil,
             queue: .main
@@ -153,15 +166,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.viewModel.refreshApps()
             }
         }
-        center.addObserver(
+
+        let terminateObs = center.addObserver(
             forName: NSWorkspace.didTerminateApplicationNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] note in
+            let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             Task { @MainActor in
+                self?.viewModel.handleAppTerminated(app)
                 self?.viewModel.refreshApps()
             }
         }
+
+        workspaceObservers = [launchObs, terminateObs]
+    }
+
+    private func removeWorkspaceObservers() {
+        let center = NSWorkspace.shared.notificationCenter
+        for obs in workspaceObservers {
+            center.removeObserver(obs)
+        }
+        workspaceObservers.removeAll()
     }
 
     private func handle(_ command: IPCCommand) {
@@ -180,6 +206,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hide()
         case .reload:
             configManager.reload()
+        case .ping:
+            break
         }
     }
 
@@ -198,9 +226,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildRootView()
         isShowing = true
         viewModel.isVisible = true
+        suppressHideOnBlur = true
         window?.showAnimated { [weak self] in
-            self?.focusToken = UUID()
-            self?.rebuildRootView()
+            guard let self else { return }
+            self.focusToken = UUID()
+            self.rebuildRootView()
+            // Allow blur-hide only after focus has settled.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                self?.suppressHideOnBlur = false
+            }
         }
         installKeyMonitor()
     }
@@ -209,6 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard isShowing else { return }
         isShowing = false
         viewModel.isVisible = false
+        suppressHideOnBlur = false
         removeKeyMonitor()
         window?.hideAnimated()
     }
@@ -218,6 +253,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         windowDelegate.onResignKey = { [weak self] in
             guard let self else { return }
+            guard !self.suppressHideOnBlur else { return }
             if self.configManager.config.behavior.hideOnBlur {
                 self.hide()
             }
@@ -258,8 +294,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let handled = LauncherKeyRouter.handle(
                 event: event,
                 viewModel: self.viewModel,
-                onClose: { self.hide() },
-                onActivate: { self.hide() }
+                onClose: { [weak self] in self?.hide() },
+                onActivate: { [weak self] in self?.hide() }
             )
             return handled ? nil : event
         }
