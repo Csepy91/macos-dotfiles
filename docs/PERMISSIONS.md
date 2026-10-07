@@ -72,6 +72,7 @@ Enable for:
 | App | How it appears / path |
 | --- | --- |
 | OmniWM | **OmniWM** |
+| Launcher | **Launcher** (`~/Applications/Launcher.app`) — menu-bar search |
 | skhd | often **missing until you add it** — see below |
 | sketchybar | often add via **+** → Go to Folder |
 | borders | often add via **+** → Go to Folder |
@@ -182,8 +183,27 @@ unless you turn off borders / sketchybar.
 
 ## Launcher
 
-**OmniWM command palette** — `Alt+R` (skhd) opens the palette on the Applications tab.
-Spotlight (`Cmd+Space`) remains available as the system default.
+Notch-spawned keyboard launcher (`~/Applications/Launcher.app`).
+
+| Hotkey | Action |
+| --- | --- |
+| `Alt+R` | Toggle Apps mode (`launcher --toggle`) |
+| `Alt+Shift+R` | Open Menu Bar Search (`launcher --menu`) |
+| `Tab` / leading `:` | Switch Apps ↔ Menu inside the panel |
+
+Build / rebuild:
+
+```sh
+./scripts/install-launcher.sh
+```
+
+Config (hot-reloads): `~/.config/launcher/config.json`
+
+Grant **Accessibility** to **Launcher** so Menu Search can read and activate
+menu items. The panel prompts if permission is missing.
+
+OmniWM’s built-in palette remains on `Control+Option+Space`. Spotlight
+(`Cmd+Space`) is unchanged unless you set Launcher’s `behavior.hotkey` to it.
 
 ## Re-run
 

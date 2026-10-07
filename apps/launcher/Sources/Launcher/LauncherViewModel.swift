@@ -1,0 +1,196 @@
+import AppKit
+import Combine
+import Foundation
+import SwiftUI
+
+enum LauncherMode: String {
+    case apps = "Apps"
+    case menu = "Menu"
+}
+
+enum LauncherItem: Identifiable, Hashable {
+    case app(LauncherApp)
+    case menu(MenuCommand)
+
+    var id: String {
+        switch self {
+        case .app(let app): return "app:\(app.id)"
+        case .menu(let cmd): return "menu:\(cmd.id)"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .app(let app): return app.name
+        case .menu(let cmd): return cmd.title
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .app(let app): return app.path
+        case .menu(let cmd): return cmd.path
+        }
+    }
+
+    var searchKey: String {
+        switch self {
+        case .app(let app): return app.name
+        case .menu(let cmd): return cmd.path
+        }
+    }
+}
+
+@MainActor
+final class LauncherViewModel: ObservableObject {
+    @Published var query: String = ""
+    @Published var mode: LauncherMode = .apps
+    @Published var selectedIndex: Int = 0
+    @Published var results: [LauncherItem] = []
+    @Published var accessibilityTrusted: Bool = MenuBarScanner.isTrusted()
+    @Published var isVisible: Bool = false
+
+    private var apps: [LauncherApp] = []
+    private var menuCommands: [MenuCommand] = []
+    /// App that was frontmost when the panel opened (for Menu Search after we steal focus).
+    private var targetApp: NSRunningApplication?
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        $query
+            .combineLatest($mode)
+            .debounce(for: .milliseconds(40), scheduler: RunLoop.main)
+            .sink { [weak self] query, mode in
+                self?.recompute(query: query, mode: mode)
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Snapshot menu commands **before** the panel becomes key / activates,
+    /// otherwise AX would read Launcher's own (empty) menu bar.
+    func prepareForShow(preferredMode: LauncherMode?) {
+        if let preferredMode {
+            mode = preferredMode
+        }
+        query = ""
+        selectedIndex = 0
+        accessibilityTrusted = MenuBarScanner.isTrusted()
+
+        // Remember the real frontmost app before we become key.
+        let front = NSWorkspace.shared.frontmostApplication
+        if front?.bundleIdentifier != "com.dotfiles.launcher" {
+            targetApp = front
+        }
+
+        if mode == .menu {
+            refreshMenuCommands(prompt: true)
+        }
+
+        recompute(query: query, mode: mode)
+
+        Task {
+            apps = await AppScanner.shared.allApps()
+            if mode == .apps {
+                recompute(query: query, mode: mode)
+            }
+        }
+    }
+
+    func toggleMode() {
+        mode = (mode == .apps) ? .menu : .apps
+        query = ""
+        selectedIndex = 0
+        if mode == .menu {
+            refreshMenuCommands(prompt: true)
+        }
+        recompute(query: query, mode: mode)
+    }
+
+    private func refreshMenuCommands(prompt: Bool) {
+        if prompt || !accessibilityTrusted {
+            accessibilityTrusted = MenuBarScanner.isTrusted(prompt: prompt)
+        }
+        if let targetApp {
+            menuCommands = MenuBarScanner.scan(app: targetApp)
+        } else {
+            menuCommands = MenuBarScanner.scanFrontmost()
+        }
+    }
+
+    func moveSelection(by delta: Int) {
+        guard !results.isEmpty else { return }
+        let next = selectedIndex + delta
+        selectedIndex = (next % results.count + results.count) % results.count
+    }
+
+    func selectIndex(_ index: Int) {
+        guard results.indices.contains(index) else { return }
+        selectedIndex = index
+    }
+
+    @discardableResult
+    func activateSelection() -> Bool {
+        guard results.indices.contains(selectedIndex) else { return false }
+        return activate(results[selectedIndex])
+    }
+
+    @discardableResult
+    func activate(_ item: LauncherItem) -> Bool {
+        switch item {
+        case .app(let app):
+            let url = URL(fileURLWithPath: app.path)
+            let config = NSWorkspace.OpenConfiguration()
+            NSWorkspace.shared.openApplication(at: url, configuration: config) { _, error in
+                if let error {
+                    NSLog("[Launcher] Failed to open \(app.path): \(error)")
+                }
+            }
+            return true
+        case .menu(let command):
+            MenuBarScanner.perform(command)
+            return true
+        }
+    }
+
+    func refreshApps() {
+        Task {
+            await AppScanner.shared.refresh()
+            apps = await AppScanner.shared.allApps()
+            if mode == .apps {
+                recompute(query: query, mode: mode)
+            }
+        }
+    }
+
+    private func recompute(query: String, mode: LauncherMode) {
+        // Leading `:` switches into menu mode (Raycast-style).
+        var effectiveQuery = query
+        var effectiveMode = mode
+        if query.hasPrefix(":") {
+            effectiveMode = .menu
+            effectiveQuery = String(query.dropFirst())
+            if self.mode != .menu {
+                self.mode = .menu
+                refreshMenuCommands(prompt: true)
+            }
+        }
+
+        let items: [LauncherItem]
+        switch effectiveMode {
+        case .apps:
+            let ranked = FuzzySearch.ranked(query: effectiveQuery, items: apps, key: \.name)
+            items = ranked.map { .app($0) }
+        case .menu:
+            if menuCommands.isEmpty {
+                refreshMenuCommands(prompt: false)
+            }
+            let ranked = FuzzySearch.ranked(query: effectiveQuery, items: menuCommands, key: \.path)
+            items = ranked.map { .menu($0) }
+        }
+
+        results = items
+        if selectedIndex >= results.count {
+            selectedIndex = max(0, results.count - 1)
+        }
+    }
+}

@@ -1,0 +1,17 @@
+#!/bin/sh
+# Thin shim: prefer the built app binary, fall back to a PATH-adjacent copy.
+set -eu
+
+CANDIDATES="
+$HOME/Applications/Launcher.app/Contents/MacOS/Launcher
+/Applications/Launcher.app/Contents/MacOS/Launcher
+"
+
+for bin in $CANDIDATES; do
+  if [ -x "$bin" ]; then
+    exec "$bin" "$@"
+  fi
+done
+
+echo "launcher: Launcher.app not found. Run: ./scripts/install-launcher.sh" >&2
+exit 127

@@ -2,6 +2,9 @@ Brewfile.lock.json
 .direnv/
 *.swp
 .DS_Store
+# SwiftPM (Launcher)
+apps/launcher/.build/
+apps/launcher/.swiftpm/
 # Generated Brewfile is committed optionally; lockfile is local
 # Host-local secrets people might drop in
 hosts/*/secrets.*
