@@ -277,6 +277,62 @@ stow_packages() {
   fi
 }
 
+# --- Post-stow CLI setup -----------------------------------------------------
+
+# bat themes and tldr's page DB need a one-shot init after first install / restow.
+post_install_cli() {
+  if $CLI_bat; then
+    if (( $+commands[bat] )); then
+      info "Rebuilding bat theme cache…"
+      if bat cache --build; then
+        ok "bat cache rebuilt"
+      else
+        warn "bat cache --build failed"
+      fi
+    else
+      warn "bat selected but not on PATH — skip cache rebuild"
+    fi
+  fi
+
+  if $CLI_tldr; then
+    if (( $+commands[tldr] )); then
+      # C client (Homebrew tldr): ~/.tldrc/tldr/pages
+      # tealdeer / tlrc also accept `tldr --update`; skip if any known cache exists.
+      local tldr_cache="${TLDR_CACHE_DIR:-$HOME/.tldrc}"
+      if [[ -d "$tldr_cache/tldr/pages" ]] \
+        || [[ -d "$HOME/.cache/tealdeer" ]] \
+        || [[ -d "$HOME/.cache/tlrc" ]]; then
+        ok "tldr cache already present"
+      else
+        info "Initializing tldr page cache…"
+        if tldr --update; then
+          ok "tldr cache initialized"
+        else
+          warn "tldr --update failed — run: tldr --update"
+        fi
+      fi
+    else
+      warn "tldr selected but not on PATH — skip init"
+    fi
+  fi
+}
+
+# Ghostty-backed .app wrappers in ~/Applications (official icons).
+install_cli_apps() {
+  local script="$ROOT/scripts/install-cli-apps.sh"
+  [[ -x "$script" ]] || chmod +x "$script"
+
+  if $CLI_yazi || $CLI_btop; then
+    info "Installing CLI app wrappers → ~/Applications"
+  fi
+  if $CLI_yazi; then
+    "$script" yazi || warn "Yazi.app install failed"
+  fi
+  if $CLI_btop; then
+    "$script" btop || warn "Btop.app install failed"
+  fi
+}
+
 # --- Wallpaper ---------------------------------------------------------------
 
 apply_wallpaper() {
@@ -407,7 +463,7 @@ Useful commands:
   /opt/homebrew/bin/skhd --restart-service   # only after the service plist exists
   brew bundle --file $ROOT/Brewfile
   stow -d $ROOT/packages -t \$HOME -R zsh theme git ghostty …
-  bat cache --build         # after first install / bat theme changes
+  ./scripts/install-cli-apps.sh   # rebuild ~/Applications/{Yazi,Btop}.app
   ./install.sh          # re-run interactive feature selection
 
 EOF
@@ -460,10 +516,14 @@ write_brewfile
 if ! $SKIP_BUNDLE; then
   brew_bundle
   stow_packages
+  post_install_cli
+  install_cli_apps
   apply_wallpaper
   start_services
 else
   stow_packages
+  post_install_cli
+  install_cli_apps
   apply_wallpaper
   warn "Skipped brew bundle / services (--no-bundle)"
 fi

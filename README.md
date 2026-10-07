@@ -98,7 +98,7 @@ Master colors (`~/.config/theme/colors.sh` / `colors.env`):
 | PURPLE | `#8B68B5` | Secondary accent |
 | AMBER | `#B07855` | Warning |
 
-After restow, rebuild bat’s theme cache once:
+`./install.sh` rebuilds bat’s theme cache after stow. After a manual restow:
 
 ```sh
 bat cache --build
