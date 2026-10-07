@@ -55,12 +55,15 @@ enum MenuBarScanner {
     }
 
     static func perform(_ command: MenuCommand) {
-        // Activate the owning app first so menu actions land correctly.
-        if let pid = pid(of: command.element) {
-            if let running = NSRunningApplication(processIdentifier: pid) {
-                running.activate(options: [.activateIgnoringOtherApps])
-            }
+        // Refuse stale elements whose owning process is gone.
+        guard let pid = pid(of: command.element),
+              let running = NSRunningApplication(processIdentifier: pid),
+              !running.isTerminated
+        else {
+            NSLog("[Launcher] Menu command target app is gone — skipping press")
+            return
         }
+        running.activate(options: [.activateIgnoringOtherApps])
         AXUIElementPerformAction(command.element, kAXPressAction as CFString)
     }
 

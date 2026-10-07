@@ -18,6 +18,6 @@
   },
   "behavior": {
     "hide_on_blur": true,
-    "hotkey": "cmd+space"
+    "hotkey": "off"
   }
 }

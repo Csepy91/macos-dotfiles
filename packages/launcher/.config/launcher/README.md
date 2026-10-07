@@ -26,6 +26,9 @@ launcher --menu      # open in Menu Search
 launcher --reload    # re-read config.json
 ```
 
+Rice default: `behavior.hotkey` is `"off"` so skhd owns `Alt+R` / `Alt+Shift+R`
+without a Carbon double-fire. Set e.g. `"cmd+space"` for a standalone global hotkey.
+
 ## Build / install
 
 ```sh

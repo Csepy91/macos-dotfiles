@@ -187,9 +187,12 @@ Notch-spawned keyboard launcher (`~/Applications/Launcher.app`).
 
 | Hotkey | Action |
 | --- | --- |
-| `Alt+R` | Toggle Apps mode (`launcher --toggle`) |
-| `Alt+Shift+R` | Open Menu Bar Search (`launcher --menu`) |
+| `Alt+R` | Toggle Apps mode (`launcher --toggle` via skhd) |
+| `Alt+Shift+R` | Open Menu Bar Search (`launcher --menu` via skhd) |
 | `Tab` / leading `:` | Switch Apps ↔ Menu inside the panel |
+
+Carbon `behavior.hotkey` defaults to `"off"` so it does not fight skhd. Set a
+value like `"cmd+space"` only when running without skhd.
 
 Build / rebuild:
 

@@ -8,9 +8,9 @@ final class ConfigManager: ObservableObject {
 
     @Published private(set) var config: LauncherConfig = .default
 
-    private var fileDescriptor: CInt = -1
     private var source: DispatchSourceFileSystemObject?
     private var reloadWorkItem: DispatchWorkItem?
+    private var restartWorkItem: DispatchWorkItem?
 
     var configURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -73,7 +73,6 @@ final class ConfigManager: ObservableObject {
             return
         }
 
-        fileDescriptor = fd
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd,
             eventMask: [.write, .rename, .delete, .extend, .attrib],
@@ -83,10 +82,10 @@ final class ConfigManager: ObservableObject {
         source.setEventHandler { [weak self] in
             guard let self else { return }
             let flags = source.data
-            // Debounce editors that write via temp+rename.
             self.scheduleReload()
+            // Never cancel a DispatchSource from inside its own handler — defer.
             if flags.contains(.delete) || flags.contains(.rename) {
-                self.startWatching()
+                self.scheduleWatcherRestart()
             }
         }
 
@@ -107,12 +106,19 @@ final class ConfigManager: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: item)
     }
 
-    private func stopWatching() {
-        source?.cancel()
-        source = nil
-        if fileDescriptor >= 0 {
-            fileDescriptor = -1
+    private func scheduleWatcherRestart() {
+        restartWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.startWatching()
         }
+        restartWorkItem = item
+        DispatchQueue.main.async(execute: item)
     }
 
+    private func stopWatching() {
+        restartWorkItem?.cancel()
+        restartWorkItem = nil
+        source?.cancel()
+        source = nil
+    }
 }
