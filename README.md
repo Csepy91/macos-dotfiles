@@ -29,7 +29,7 @@ Apple Silicon macOS rice built on **Homebrew** (all packages) and **GNU Stow** (
 ## Quick start
 
 ```sh
-git clone <this-repo> ~/dotfiles
+git clone https://github.com/Csepy91/macos-dotfiles.git ~/dotfiles
 cd ~/dotfiles
 chmod +x install.sh
 ./install.sh
