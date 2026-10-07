@@ -11,7 +11,7 @@ if (( $+commands[fzf] )); then
 --color=hl:${BLUE_BRIGHT},hl+:${BLUE_BRIGHT}
 --color=info:${MUTED},prompt:${BLUE},pointer:${BLUE_BRIGHT}
 --color=marker:${AMBER},spinner:${PURPLE},header:${PURPLE}
---color=border:${BORDER},gutter:${BASE},preview-bg:${SURFACE}
+--color=border:${THEME_BORDER},gutter:${BASE},preview-bg:${SURFACE}
 --border=rounded
 --height=40%
 --layout=reverse"

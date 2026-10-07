@@ -79,11 +79,19 @@ apply_selection() {
     eval "${prefix}_${key}=false"
   done
   for key in ${(f)selected}; do
-    if [[ -z "$key" ]]; then
-      continue
+    [[ -z "$key" ]] && continue
+    # Only accept known keys — never eval gum/fzf error text.
+    if (( ${all_keys[(Ie)$key]} )); then
+      eval "${prefix}_${key}=true"
     fi
-    eval "${prefix}_${key}=true"
   done
+}
+
+# gum's style flags read bare $BORDER as a border *style* enum (rounded/none/…).
+# Our theme used to export BORDER=#hex which breaks `gum choose`.
+gum_choose() {
+  env -u BORDER -u BORDER_FOREGROUND -u BORDER_BACKGROUND \
+    gum choose "$@"
 }
 
 # Build gum --selected args for enabled flags under PREFIX_*.
@@ -113,21 +121,21 @@ interactive_select() {
   if (( $+commands[gum] )); then
     info "Select CLI tools (Space toggles, Enter confirms)"
     gum_selected=(${(z)$(gum_selected_args CLI "${cli_keys[@]}")})
-    sel="$(gum choose --no-limit --header "CLI tools" "${gum_selected[@]}" "${cli_keys[@]}" || true)"
+    sel="$(gum_choose --no-limit --header "CLI tools" "${gum_selected[@]}" "${cli_keys[@]}" || true)"
     if [[ -n "$sel" ]]; then
       apply_selection CLI "$sel"
     fi
 
     info "Select rice components"
     gum_selected=(${(z)$(gum_selected_args RICE "${rice_keys[@]}")})
-    sel="$(gum choose --no-limit --header "Rice" "${gum_selected[@]}" "${rice_keys[@]}" || true)"
+    sel="$(gum_choose --no-limit --header "Rice" "${gum_selected[@]}" "${rice_keys[@]}" || true)"
     if [[ -n "$sel" ]]; then
       apply_selection RICE "$sel"
     fi
 
     info "Select GUI apps"
     gum_selected=(${(z)$(gum_selected_args APPS "${apps_keys[@]}")})
-    sel="$(gum choose --no-limit --header "GUI apps" "${gum_selected[@]}" "${apps_keys[@]}" || true)"
+    sel="$(gum_choose --no-limit --header "GUI apps" "${gum_selected[@]}" "${apps_keys[@]}" || true)"
     if [[ -n "$sel" ]]; then
       apply_selection APPS "$sel"
     fi

@@ -90,7 +90,7 @@ Master colors (`~/.config/theme/colors.sh` / `colors.env`):
 | BASE | `#0D0D13` | Background |
 | SURFACE | `#161720` | Panels |
 | SURFACE_ALT | `#1D2030` | Elevated |
-| BORDER | `#30344B` | Borders |
+| THEME_BORDER | `#30344B` | Borders |
 | FG | `#D0D2DF` | Primary text |
 | MUTED | `#6D7291` | Secondary |
 | BLUE | `#6672B8` | Accent |
