@@ -67,7 +67,8 @@ struct BehaviorConfig: Codable, Equatable {
         case hotkey
     }
 
-    static let `default` = BehaviorConfig(hideOnBlur: true, hotkey: "cmd+space")
+    /// Carbon hotkey is opt-in. Rice defaults to skhd (`Alt+R`); set e.g. `cmd+space` for standalone use.
+    static let `default` = BehaviorConfig(hideOnBlur: true, hotkey: "off")
 }
 
 struct LauncherConfig: Codable, Equatable {

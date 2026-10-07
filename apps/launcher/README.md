@@ -26,8 +26,8 @@ Requires macOS 13+, Xcode / CLT, and Accessibility for Menu Search.
 | `MenuBarScanner.swift` | `AXUIElement` menu walk / press |
 | `LauncherViewModel.swift` | Fuzzy filter, modes, keyboard |
 | `MainView.swift` | SwiftUI UI bound to theme tokens |
-| `HotkeyManager.swift` | Carbon global hotkey fallback |
-| `IPCServer.swift` | Unix socket for `launcher --toggle` |
+| `HotkeyManager.swift` | Carbon global hotkey (opt-in; rice uses skhd) |
+| `IPCServer.swift` | Unix socket IPC + single-instance ping |
 
 ## skhd
 

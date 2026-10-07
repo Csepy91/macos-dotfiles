@@ -7,11 +7,24 @@ struct LauncherApp: Identifiable, Hashable {
     let path: String
     let bundleIdentifier: String?
 
+    /// Cached per-path icons (main-actor). Avoids rebuilding NSImage every SwiftUI body pass.
+    @MainActor
+    private static var iconCache: [String: NSImage] = [:]
+
     @MainActor
     var icon: NSImage {
+        if let cached = Self.iconCache[path] {
+            return cached
+        }
         let image = NSWorkspace.shared.icon(forFile: path)
         image.size = NSSize(width: 32, height: 32)
+        Self.iconCache[path] = image
         return image
+    }
+
+    @MainActor
+    static func pruneIconCache(keepingPaths paths: Set<String>) {
+        iconCache = iconCache.filter { paths.contains($0.key) }
     }
 }
 
@@ -21,6 +34,8 @@ actor AppScanner {
 
     private var apps: [LauncherApp] = []
     private var isScanning = false
+    /// If a refresh is requested while one is in flight, run again after it finishes.
+    private var needsRescan = false
 
     func allApps() async -> [LauncherApp] {
         if apps.isEmpty {
@@ -30,9 +45,19 @@ actor AppScanner {
     }
 
     func refresh() async {
-        guard !isScanning else { return }
+        if isScanning {
+            needsRescan = true
+            return
+        }
         isScanning = true
-        defer { isScanning = false }
+        defer {
+            isScanning = false
+            if needsRescan {
+                needsRescan = false
+                // Schedule a follow-up scan without blocking the current caller forever.
+                Task { await self.refresh() }
+            }
+        }
 
         let roots = defaultRoots()
         var found: [String: LauncherApp] = [:]
@@ -57,6 +82,11 @@ actor AppScanner {
 
         apps = found.values.sorted {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+
+        let paths = Set(apps.map(\.path))
+        await MainActor.run {
+            LauncherApp.pruneIconCache(keepingPaths: paths)
         }
     }
 

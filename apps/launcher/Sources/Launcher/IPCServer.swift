@@ -6,6 +6,8 @@ enum IPCCommand: String {
     case show
     case hide
     case reload
+    /// Probe used for single-instance detection (no UI side effects).
+    case ping
 }
 
 /// Unix-domain socket used so `launcher --toggle` / `--menu` / `--reload` can
@@ -13,7 +15,7 @@ enum IPCCommand: String {
 final class IPCServer {
     static let shared = IPCServer()
 
-    private var listener: NWUnixListener?
+    private var listener: UnixSocketListener?
     private let queue = DispatchQueue(label: "com.dotfiles.launcher.ipc")
 
     var onCommand: ((IPCCommand) -> Void)?
@@ -28,32 +30,42 @@ final class IPCServer {
         return dir.appendingPathComponent("ipc.sock")
     }
 
+    /// Returns `true` if another Launcher daemon already owns the IPC socket.
+    static func isDaemonRunning() -> Bool {
+        send(.ping)
+    }
+
     func start() {
         let url = Self.socketURL
+        // Only unlink if we are becoming the daemon; callers must ensure no live peer.
         try? FileManager.default.removeItem(at: url)
 
-        let listener = NWUnixListener(path: url.path, queue: queue)
+        let listener = UnixSocketListener(path: url.path, queue: queue)
         listener.onMessage = { [weak self] line in
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             guard let command = IPCCommand(rawValue: trimmed) else { return }
+            if command == .ping { return }
             DispatchQueue.main.async {
                 self?.onCommand?(command)
             }
         }
-        listener.start()
+        guard listener.start() else {
+            NSLog("[Launcher] IPC listen failed at \(url.path)")
+            return
+        }
         self.listener = listener
     }
 
     /// Attempt to send a command to a running instance. Returns `true` if delivered.
     @discardableResult
     static func send(_ command: IPCCommand) -> Bool {
-        NWUnixClient.send(command.rawValue + "\n", to: socketURL.path)
+        UnixSocketClient.send(command.rawValue + "\n", to: socketURL.path)
     }
 }
 
 // MARK: - Minimal Unix socket helpers (no Network.framework required)
 
-private final class NWUnixListener {
+private final class UnixSocketListener {
     private let path: String
     private let queue: DispatchQueue
     private var serverFD: Int32 = -1
@@ -66,14 +78,19 @@ private final class NWUnixListener {
         self.queue = queue
     }
 
-    func start() {
+    @discardableResult
+    func start() -> Bool {
         serverFD = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard serverFD >= 0 else { return }
+        guard serverFD >= 0 else { return false }
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
         let pathBytes = path.utf8CString
-        precondition(pathBytes.count <= MemoryLayout.size(ofValue: addr.sun_path))
+        guard pathBytes.count <= MemoryLayout.size(ofValue: addr.sun_path) else {
+            close(serverFD)
+            serverFD = -1
+            return false
+        }
         withUnsafeMutableBytes(of: &addr.sun_path) { buffer in
             pathBytes.withUnsafeBytes { src in
                 buffer.copyMemory(from: src)
@@ -88,13 +105,13 @@ private final class NWUnixListener {
         guard bindResult == 0 else {
             close(serverFD)
             serverFD = -1
-            return
+            return false
         }
 
         guard listen(serverFD, 4) == 0 else {
             close(serverFD)
             serverFD = -1
-            return
+            return false
         }
 
         // Restrict socket to the current user.
@@ -105,11 +122,14 @@ private final class NWUnixListener {
         source.setEventHandler { [weak self] in
             self?.acceptClient()
         }
-        source.setCancelHandler {
+        // Own the FD exclusively in the cancel handler — never close twice.
+        source.setCancelHandler { [weak self] in
             close(fd)
+            self?.serverFD = -1
         }
         self.source = source
         source.resume()
+        return true
     }
 
     private func acceptClient() {
@@ -127,13 +147,19 @@ private final class NWUnixListener {
     }
 
     deinit {
-        source?.cancel()
-        if serverFD >= 0 { close(serverFD) }
+        // Cancel closes the FD once via setCancelHandler. Do not close again.
+        if let source {
+            source.cancel()
+            self.source = nil
+        } else if serverFD >= 0 {
+            close(serverFD)
+            serverFD = -1
+        }
         try? FileManager.default.removeItem(atPath: path)
     }
 }
 
-private enum NWUnixClient {
+private enum UnixSocketClient {
     static func send(_ message: String, to path: String) -> Bool {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { return false }

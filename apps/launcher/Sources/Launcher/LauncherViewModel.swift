@@ -106,9 +106,33 @@ final class LauncherViewModel: ObservableObject {
         recompute(query: query, mode: mode)
     }
 
+    /// Drop stale AX refs when the scanned app quits.
+    func handleAppTerminated(_ app: NSRunningApplication?) {
+        guard let app else { return }
+        let matchesTarget: Bool = {
+            if let targetApp {
+                return targetApp.processIdentifier == app.processIdentifier
+            }
+            return false
+        }()
+        if matchesTarget {
+            targetApp = nil
+            menuCommands = []
+            if mode == .menu {
+                results = []
+            }
+        }
+    }
+
     private func refreshMenuCommands(prompt: Bool) {
         if prompt || !accessibilityTrusted {
             accessibilityTrusted = MenuBarScanner.isTrusted(prompt: prompt)
+        }
+        // Bail if the remembered app is gone.
+        if let targetApp, targetApp.isTerminated {
+            self.targetApp = nil
+            menuCommands = []
+            return
         }
         if let targetApp {
             menuCommands = MenuBarScanner.scan(app: targetApp)
@@ -147,6 +171,10 @@ final class LauncherViewModel: ObservableObject {
             }
             return true
         case .menu(let command):
+            if let targetApp, targetApp.isTerminated {
+                menuCommands = []
+                return false
+            }
             MenuBarScanner.perform(command)
             return true
         }
