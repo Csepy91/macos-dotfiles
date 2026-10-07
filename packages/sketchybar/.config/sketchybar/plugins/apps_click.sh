@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Open OmniWM's native status-item dropdown (not open-menu-anywhere).
-# Compiles plugins/apps_click.swift once into ~/.cache/sketchybar/.
-
+# Open OmniWM's native status-item dropdown (under the SketchyBar cog).
 set -euo pipefail
 
 SRC="${HOME}/.config/sketchybar/plugins/apps_click.swift"
@@ -21,9 +19,6 @@ if [[ "$needs_build" -eq 1 ]]; then
   /usr/bin/swiftc -O \
     -framework Cocoa \
     -framework ApplicationServices \
-    -framework CoreGraphics \
-    -F /System/Library/PrivateFrameworks \
-    -framework SkyLight \
     -o "$BIN" "$SRC"
 fi
 

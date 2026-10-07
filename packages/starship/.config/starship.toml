@@ -1,7 +1,10 @@
 # Cinematic Noir — Starship
 # Palette tokens mirror ~/.config/theme/colors.env
 
-format = "$directory$git_branch$git_status$character"
+format = """
+$directory$git_branch$git_status$cmd_duration
+$character
+"""
 
 palette = "cinematic_noir"
 

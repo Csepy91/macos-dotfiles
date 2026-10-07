@@ -36,7 +36,7 @@ useGlobalGaps = true
 
 [focus]
 crossesMonitorAtEdge = false
-followsMouse = true
+followsMouse = false
 followsWindowToMonitor = false
 lockModifier = "off"
 moveCrossesMonitorAtEdge = false
@@ -71,7 +71,7 @@ mouseMoveModifierKey = "option"
 mouseResizeModifierKey = "option"
 overviewGestureEnabled = false
 overviewGestureFingerCount = 4
-scrollEnabled = true
+scrollEnabled = false
 scrollModifierKey = "optionShift"
 scrollSensitivity = 5.0
 trackpadScrollStyle = "snap"
@@ -85,7 +85,7 @@ workspaceSwipeEnabled = false
 workspaceSwipeFingerCount = 3
 
 [hiddenBar]
-enabled = true
+enabled = false
 hiddenBundleIDs = []
 rehideIntervalSeconds = 5.0
 

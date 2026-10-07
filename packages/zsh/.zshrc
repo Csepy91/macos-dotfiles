@@ -78,10 +78,11 @@ fi
 
 if (( $+commands[yazi] )); then
   function y() {
-    local tmp
+    local tmp cwd
     tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
     yazi "$@" --cwd-file="$tmp"
-    if cwd="$(cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+    # Avoid cat — it is aliased to bat, which mangles the path.
+    if cwd="$(<$tmp)" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
       builtin cd -- "$cwd"
     fi
     rm -f -- "$tmp"

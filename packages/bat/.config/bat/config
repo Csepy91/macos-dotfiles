@@ -1,5 +1,5 @@
 # Cinematic Noir — bat
-# After install/restow: bat cache --build
+# Themes must be .tmTheme (not .sublime-color-scheme). After install/restow: bat cache --build
 --theme="CinematicNoir"
 --style="numbers,changes,header"
 --color=always
