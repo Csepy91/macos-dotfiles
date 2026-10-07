@@ -72,6 +72,13 @@ if (( $+commands[bat] )); then
   alias cat='bat --paging=never'
 fi
 
+if (( $+commands[nvim] )); then
+  export EDITOR=nvim
+  export VISUAL=nvim
+  alias vi='nvim'
+  alias vim='nvim'
+fi
+
 if (( $+commands[fzf] )); then
   source <(fzf --zsh) 2>/dev/null || true
 fi

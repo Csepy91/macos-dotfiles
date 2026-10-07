@@ -16,7 +16,7 @@ Apple Silicon macOS rice built on **Homebrew** (all packages) and **GNU Stow** (
 | Shell | zsh + starship + plugins |
 | Theme | Cinematic Noir (central palette) |
 | Editor | Sublime Text |
-| Launcher | Spotlight (temporary) |
+| Launcher | OmniWM command palette (`Alt+R`) |
 | Packages | Homebrew |
 | Dotfiles | GNU Stow |
 
@@ -70,7 +70,7 @@ packages/          # Stow packages (mirror $HOME layout)
   skhd/            # ~/.config/skhd/
   borders/         # ~/.config/borders/
   sketchybar/      # ~/.config/sketchybar/
-  starship/ bat/ btop/ gh/ yazi/ ripgrep/
+  starship/ bat/ btop/ gh/ yazi/ ripgrep/ nvim/ duti/
   sublime/         # ~/Library/Application Support/Sublime Text/
 hosts/<name>/features.conf
 lib/features.sh    # feature flag helpers

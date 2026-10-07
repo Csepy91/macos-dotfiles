@@ -180,10 +180,10 @@ This rice **disables** OmniWM’s built-in borders, workspace bar, and Hidden Ba
 (`~/.config/omniwm/settings.toml`). Do not re-enable workspace bar / borders
 unless you turn off borders / sketchybar.
 
-## Launcher (deferred)
+## Launcher
 
-**Spotlight** (`Cmd+Space`) is the launcher for now.
-OmniWM’s command palette (`Ctrl+Option+Space`) still works for windows/apps.
+**OmniWM command palette** — `Alt+R` (skhd) opens the palette on the Applications tab.
+Spotlight (`Cmd+Space`) remains available as the system default.
 
 ## Re-run
 

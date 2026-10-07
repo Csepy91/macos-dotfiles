@@ -1,0 +1,44 @@
+# Default handlers — applied by ./install.sh (duti).
+# Format: bundle_id  UTI  role
+
+# --- Text / source → Sublime Text -------------------------------------------
+com.sublimetext.4	public.plain-text	all
+com.sublimetext.4	public.text	all
+com.sublimetext.4	public.source-code	all
+com.sublimetext.4	public.script	all
+com.sublimetext.4	public.shell-script	all
+com.sublimetext.4	public.python-script	all
+com.sublimetext.4	public.ruby-script	all
+com.sublimetext.4	public.perl-script	all
+com.sublimetext.4	public.php-script	all
+com.sublimetext.4	public.swift-source	all
+com.sublimetext.4	public.c-source	all
+com.sublimetext.4	public.c-header	all
+com.sublimetext.4	public.c-plus-plus-source	all
+com.sublimetext.4	public.c-plus-plus-header	all
+com.sublimetext.4	public.objective-c-source	all
+com.sublimetext.4	public.objective-c-plus-plus-source	all
+com.sublimetext.4	com.netscape.javascript-source	all
+com.sublimetext.4	public.css	all
+com.sublimetext.4	public.html	all
+com.sublimetext.4	public.xml	all
+com.sublimetext.4	public.json	all
+com.sublimetext.4	public.yaml	all
+com.sublimetext.4	net.daringfireball.markdown	all
+com.sublimetext.4	com.apple.property-list	all
+com.sublimetext.4	com.apple.xml-property-list	all
+com.sublimetext.4	com.sun.java-source	all
+
+# --- Media → IINA -----------------------------------------------------------
+# Prefer extensions in apply-duti.sh for formats with flaky UTIs on modern macOS.
+com.colliderli.iina	public.movie	all
+com.colliderli.iina	public.video	all
+com.colliderli.iina	public.audio	all
+com.colliderli.iina	public.mpeg	all
+com.colliderli.iina	public.mpeg-4	all
+com.colliderli.iina	public.mpeg-4-audio	all
+com.colliderli.iina	public.avi	all
+com.colliderli.iina	public.mp3	all
+com.colliderli.iina	public.aiff-audio	all
+com.colliderli.iina	com.apple.quicktime-movie	all
+com.colliderli.iina	com.microsoft.waveform-audio	all

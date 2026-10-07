@@ -5,8 +5,6 @@ alt - c : open -a "Cursor"
 alt - t : open -a "Transmission"
 alt - f : open -a "Finder"
 
-# OmniWM command palette → Applications tab (script: ipcEnabled + Accessibility for osascript)
+# Launcher: OmniWM command palette → Applications tab
+# (script: ipcEnabled + Accessibility for osascript)
 alt - r : ~/.config/skhd/open-command-palette-applications.sh
-
-# Spotlight (launcher deferred — keep system default discoverable)
-# cmd - space is Spotlight by default; do not steal it here.

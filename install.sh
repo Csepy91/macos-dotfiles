@@ -70,7 +70,7 @@ apply_selection() {
   local selected="$2"
   local -a all_keys
   case "$prefix" in
-    CLI) all_keys=(bat btop duti eza fd fzf gh git ncdu ripgrep starship tldr uv zoxide yazi) ;;
+    CLI) all_keys=(bat btop duti eza fd fzf gh git ncdu nvim ripgrep starship tldr uv zoxide yazi) ;;
     RICE) all_keys=(omniwm sketchybar jankyborders skhd ghostty) ;;
     APPS) all_keys=(cursor sublimeText teamviewer transmission iina libreoffice geForceNow) ;;
   esac
@@ -112,7 +112,7 @@ gum_selected_args() {
 }
 
 interactive_select() {
-  local -a cli_keys=(bat btop duti eza fd fzf gh git ncdu ripgrep starship tldr uv zoxide yazi)
+  local -a cli_keys=(bat btop duti eza fd fzf gh git ncdu nvim ripgrep starship tldr uv zoxide yazi)
   local -a rice_keys=(omniwm sketchybar jankyborders skhd ghostty)
   local -a apps_keys=(cursor sublimeText teamviewer transmission iina libreoffice geForceNow)
   local sel
@@ -323,6 +323,17 @@ post_install_cli() {
       warn "tldr selected but not on PATH — skip init"
     fi
   fi
+
+  if $CLI_duti; then
+    local duti_script="$ROOT/scripts/apply-duti.sh"
+    [[ -x "$duti_script" ]] || chmod +x "$duti_script"
+    if (( $+commands[duti] )); then
+      info "Applying default file handlers (Sublime Text / IINA)…"
+      "$duti_script" || warn "duti apply failed"
+    else
+      warn "duti selected but not on PATH — skip handlers"
+    fi
+  fi
 }
 
 # Ghostty-backed .app wrappers in ~/Applications (official icons).
@@ -464,7 +475,7 @@ Next steps:
   3. Set Desktop & Dock → Automatically hide and show the menu bar → ${BLU}Never${RST} (required for sketchybar).
   4. Log out and back in if Mission Control "Displays have separate Spaces" changed.
   5. Launch OmniWM, Ghostty, and confirm sketchybar / borders / skhd are running.
-  6. Launcher is Spotlight for now (Cmd+Space).
+  6. Launcher: OmniWM command palette (Alt+R → Applications via skhd).
 
 Useful commands:
   /opt/homebrew/bin/skhd --install-service && /opt/homebrew/bin/skhd --start-service
@@ -472,6 +483,7 @@ Useful commands:
   brew bundle --file $ROOT/Brewfile
   stow -d $ROOT/packages -t \$HOME -R zsh theme git ghostty …
   ./scripts/install-cli-apps.sh   # rebuild ~/Applications/{Yazi,Btop}.app
+  ./scripts/apply-duti.sh         # re-apply Sublime/IINA default handlers
   ./install.sh          # re-run interactive feature selection
 
 EOF

@@ -12,6 +12,7 @@ features_set_defaults() {
   CLI_gh=true
   CLI_git=true
   CLI_ncdu=true
+  CLI_nvim=true
   CLI_ripgrep=true
   CLI_starship=true
   CLI_tldr=true
@@ -46,7 +47,7 @@ features_load() {
     key="${line%%=*}"
     val="${line#*=}"
     case "$key" in
-      CLI_bat|CLI_btop|CLI_duti|CLI_eza|CLI_fd|CLI_fzf|CLI_gh|CLI_git|CLI_ncdu|CLI_ripgrep|CLI_starship|CLI_tldr|CLI_uv|CLI_zoxide|CLI_yazi|\
+      CLI_bat|CLI_btop|CLI_duti|CLI_eza|CLI_fd|CLI_fzf|CLI_gh|CLI_git|CLI_ncdu|CLI_nvim|CLI_ripgrep|CLI_starship|CLI_tldr|CLI_uv|CLI_zoxide|CLI_yazi|\
       RICE_omniwm|RICE_sketchybar|RICE_jankyborders|RICE_skhd|RICE_ghostty|\
       APPS_cursor|APPS_sublimeText|APPS_teamviewer|APPS_transmission|APPS_iina|APPS_libreoffice|APPS_geForceNow)
         eval "$key=$([[ "$val" == "true" ]] && echo true || echo false)"
@@ -70,6 +71,7 @@ CLI_fzf=${CLI_fzf}
 CLI_gh=${CLI_gh}
 CLI_git=${CLI_git}
 CLI_ncdu=${CLI_ncdu}
+CLI_nvim=${CLI_nvim}
 CLI_ripgrep=${CLI_ripgrep}
 CLI_starship=${CLI_starship}
 CLI_tldr=${CLI_tldr}
@@ -105,6 +107,7 @@ features_brew_formulae() {
   $CLI_gh && out+=(gh)
   $CLI_git && out+=(git)
   $CLI_ncdu && out+=(ncdu)
+  $CLI_nvim && out+=(neovim)
   $CLI_ripgrep && out+=(ripgrep)
   $CLI_starship && out+=(starship)
   $CLI_tldr && out+=(tldr)
@@ -147,9 +150,11 @@ features_stow_packages() {
   $CLI_bat && out+=(bat)
   $CLI_btop && out+=(btop)
   $CLI_gh && out+=(gh)
+  $CLI_nvim && out+=(nvim)
   $CLI_ripgrep && out+=(ripgrep)
   $CLI_starship && out+=(starship)
   $CLI_yazi && out+=(yazi)
+  $CLI_duti && out+=(duti)
   $RICE_ghostty && out+=(ghostty)
   $RICE_omniwm && out+=(omniwm)
   $RICE_skhd && out+=(skhd)
