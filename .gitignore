@@ -5,3 +5,5 @@ Brewfile.lock.json
 # Generated Brewfile is committed optionally; lockfile is local
 # Host-local secrets people might drop in
 hosts/*/secrets.*
+# gh auth tokens / account state (created by `gh auth login`)
+packages/gh/.config/gh/hosts.yml

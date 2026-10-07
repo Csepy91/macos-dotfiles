@@ -7,6 +7,10 @@
 [core]
 	editor = nvim
 
+# Personal identity (name/email) — written by ./install.sh, not tracked.
+[include]
+	path = ~/.gitconfig.local
+
 # Cinematic Noir — presentation only (behavior unchanged)
 [color]
 	ui = auto
@@ -40,6 +44,4 @@
 	help = "#6D7291"
 	error = "#A76565"
 
-# Set your identity locally:
-#   git config --global user.name "Your Name"
-#   git config --global user.email "you@example.com"
+# Identity lives in ~/.gitconfig.local (created by ./install.sh).

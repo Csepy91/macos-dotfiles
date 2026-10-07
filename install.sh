@@ -89,9 +89,13 @@ apply_selection() {
 
 # gum's style flags read bare $BORDER as a border *style* enum (rounded/none/…).
 # Our theme used to export BORDER=#hex which breaks `gum choose`.
-gum_choose() {
+gum_run() {
   env -u BORDER -u BORDER_FOREGROUND -u BORDER_BACKGROUND \
-    gum choose "$@"
+    gum "$@"
+}
+
+gum_choose() {
+  gum_run choose "$@"
 }
 
 # Build gum --selected args for enabled flags under PREFIX_*.
@@ -287,6 +291,80 @@ stow_packages() {
 
 # --- Post-stow CLI setup -----------------------------------------------------
 
+# Write name/email to ~/.gitconfig.local (included by stowed ~/.gitconfig).
+configure_git_identity() {
+  if ! $CLI_git; then
+    return 0
+  fi
+  if $NONINTERACTIVE; then
+    if [[ -f "$HOME/.gitconfig.local" ]]; then
+      ok "git identity present (skipped prompt in --yes mode)"
+    else
+      warn "Skipping git name/email prompt (--yes) — run: ./install.sh  or edit ~/.gitconfig.local"
+    fi
+    return 0
+  fi
+
+  local name email
+  name="$(git config --file "$HOME/.gitconfig.local" user.name 2>/dev/null || true)"
+  email="$(git config --file "$HOME/.gitconfig.local" user.email 2>/dev/null || true)"
+  [[ -z "$name" ]] && name="$(git config user.name 2>/dev/null || true)"
+  [[ -z "$email" ]] && email="$(git config user.email 2>/dev/null || true)"
+
+  info "Git identity (stored in ~/.gitconfig.local, not in the repo)"
+  if (( $+commands[gum] )); then
+    name="$(gum_run input --placeholder "Your Name" --value "${name}" --header "Git user.name" || true)"
+    email="$(gum_run input --placeholder "you@example.com" --value "${email}" --header "Git user.email" || true)"
+  else
+    print -n "Git user.name [${name}]: "
+    local reply
+    read -r reply || true
+    [[ -n "$reply" ]] && name="$reply"
+    print -n "Git user.email [${email}]: "
+    read -r reply || true
+    [[ -n "$reply" ]] && email="$reply"
+  fi
+
+  if [[ -z "$name" || -z "$email" ]]; then
+    warn "Git name/email incomplete — set later in ~/.gitconfig.local"
+    return 0
+  fi
+
+  git config --file "$HOME/.gitconfig.local" user.name "$name"
+  git config --file "$HOME/.gitconfig.local" user.email "$email"
+  ok "git identity: $name <$email>"
+}
+
+ensure_gh_auth() {
+  if ! $CLI_gh; then
+    return 0
+  fi
+  if ! (( $+commands[gh] )); then
+    warn "gh selected but not on PATH — skip auth"
+    return 0
+  fi
+  if $NONINTERACTIVE; then
+    if gh auth status &>/dev/null; then
+      ok "gh already authenticated (skipped login in --yes mode)"
+    else
+      warn "Skipping gh auth login (--yes) — run: gh auth login"
+    fi
+    return 0
+  fi
+
+  if gh auth status &>/dev/null; then
+    ok "gh already authenticated"
+    return 0
+  fi
+
+  info "GitHub CLI login (follow the prompts)…"
+  if gh auth login; then
+    ok "gh auth complete"
+  else
+    warn "gh auth login failed — run: gh auth login"
+  fi
+}
+
 # bat themes and tldr's page DB need a one-shot init after first install / restow.
 post_install_cli() {
   if $CLI_bat; then
@@ -334,6 +412,9 @@ post_install_cli() {
       warn "duti selected but not on PATH — skip handlers"
     fi
   fi
+
+  configure_git_identity
+  ensure_gh_auth
 }
 
 # Ghostty-backed .app wrappers in ~/Applications (official icons).
@@ -484,6 +565,7 @@ Useful commands:
   stow -d $ROOT/packages -t \$HOME -R zsh theme git ghostty …
   ./scripts/install-cli-apps.sh   # rebuild ~/Applications/{Yazi,Btop}.app
   ./scripts/apply-duti.sh         # re-apply Sublime/IINA default handlers
+  gh auth login                   # if skipped during --yes
   ./install.sh          # re-run interactive feature selection
 
 EOF
