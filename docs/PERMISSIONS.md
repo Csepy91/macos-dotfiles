@@ -211,14 +211,16 @@ signature, not just its name. Ad-hoc signed builds get a new identity every
 while Menu Search is denied. Fix once:
 
 1. Run `./scripts/install-launcher.sh` — it should print `Signed: dotfiles-Launcher`
-   (not `ad-hoc`). The script creates/trusts that cert so rebuilds keep the grant.
+   (not `ad-hoc`). Certs live in
+   `~/Library/Keychains/dotfiles-codesign.keychain-db` so rebuilds sign silently
+   without Keychain popups.
 2. In **Privacy & Security → Accessibility**, remove every old **Launcher** row.
 3. Click **+** → add `~/Applications/Launcher.app` → toggle **on**.
 4. `launchctl kickstart -k gui/$(id -u)/com.dotfiles.launcher` (or log out/in).
 
-If install still says `Signed: ad-hoc`, open **Keychain Access**, find
-`dotfiles-Launcher`, Get Info → Trust → **Code Signing: Always Trust**, then
-re-run the install script and repeat steps 2–4 once.
+Rebuilds should not show certificate dialogs. If install still says `Signed: ad-hoc`,
+delete `~/Library/Keychains/dotfiles-codesign.keychain-db` and re-run the install
+script, then repeat steps 2–4 once.
 
 OmniWM’s built-in palette remains on `Control+Option+Space`. Spotlight
 (`Cmd+Space`) is unchanged unless you set Launcher’s `behavior.hotkey` to it.

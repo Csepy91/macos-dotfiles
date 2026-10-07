@@ -20,118 +20,9 @@ die() { print -r -- "error: $*" >&2; exit 1; }
 [[ "$(uname -s)" == "Darwin" ]] || die "CalendarBar builds only on macOS."
 (( $+commands[swift] )) || die "swift not found — install Xcode or the Command Line Tools."
 
-# ---------------------------------------------------------------------------
-# Codesigning — prefer a stable self-signed cert over ad-hoc.
-# ---------------------------------------------------------------------------
-login_keychain() {
-  local keychain="$HOME/Library/Keychains/login.keychain-db"
-  [[ -f "$keychain" ]] || keychain="$HOME/Library/Keychains/login.keychain"
-  print -r -- "$keychain"
-}
-
-identity_names_from_find() {
-  sed -n 's/.*"\([^"]*\)".*/\1/p'
-}
-
-find_codesign_identity() {
-  security find-identity -p codesigning -v 2>/dev/null \
-    | identity_names_from_find \
-    | grep -Fx "$CODESIGN_IDENTITY" \
-    | head -1
-}
-
-cert_exists() {
-  security find-certificate -c "$CODESIGN_IDENTITY" >/dev/null 2>&1
-}
-
-trust_codesign_cert() {
-  local keychain tmp
-  keychain="$(login_keychain)"
-  tmp="$(mktemp -d)"
-  if ! security find-certificate -c "$CODESIGN_IDENTITY" -p >"$tmp/cert.pem" 2>/dev/null; then
-    rm -rf "$tmp"
-    return 1
-  fi
-  security add-trusted-cert -r trustRoot -p codeSign -k "$keychain" "$tmp/cert.pem" >/dev/null 2>&1 \
-    || security add-trusted-cert -d -r trustAsRoot -p codeSign -k "$keychain" "$tmp/cert.pem" >/dev/null 2>&1 \
-    || true
-  rm -rf "$tmp"
-  [[ -n "$(find_codesign_identity || true)" ]]
-}
-
-ensure_codesign_identity() {
-  local found
-  found="$(find_codesign_identity || true)"
-  if [[ -n "$found" ]]; then
-    print -r -- "$found"
-    return 0
-  fi
-
-  if cert_exists; then
-    info "Trusting existing code-signing cert: $CODESIGN_IDENTITY"
-    if trust_codesign_cert; then
-      find_codesign_identity
-      return 0
-    fi
-    warn "Could not trust $CODESIGN_IDENTITY — fix in Keychain Access (Get Info → Trust → Code Signing: Always Trust)"
-  fi
-
-  (( $+commands[openssl] )) || return 1
-
-  info "Creating self-signed code-signing cert: $CODESIGN_IDENTITY"
-  local tmp keychain
-  tmp="$(mktemp -d)"
-  keychain="$(login_keychain)"
-
-  cat >"$tmp/openssl.cnf" <<EOF
-[ req ]
-distinguished_name = req_distinguished_name
-prompt = no
-x509_extensions = codesign_ext
-
-[ req_distinguished_name ]
-CN = ${CODESIGN_IDENTITY}
-
-[ codesign_ext ]
-keyUsage = critical, digitalSignature
-extendedKeyUsage = critical, codeSigning
-basicConstraints = critical, CA:false
-EOF
-
-  if ! openssl req -new -newkey rsa:2048 -x509 -days 3650 -nodes \
-      -keyout "$tmp/key.pem" -out "$tmp/cert.pem" \
-      -config "$tmp/openssl.cnf" >/dev/null 2>&1; then
-    rm -rf "$tmp"
-    return 1
-  fi
-  if ! openssl pkcs12 -export -inkey "$tmp/key.pem" -in "$tmp/cert.pem" \
-      -out "$tmp/cert.p12" -passout pass:dotfiles -name "$CODESIGN_IDENTITY" \
-      >/dev/null 2>&1; then
-    rm -rf "$tmp"
-    return 1
-  fi
-  if ! security import "$tmp/cert.p12" -k "$keychain" \
-      -P dotfiles -A -T /usr/bin/codesign -T /usr/bin/security >/dev/null 2>&1; then
-    rm -rf "$tmp"
-    return 1
-  fi
-  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" \
-    "$keychain" >/dev/null 2>&1 || true
-  security add-trusted-cert -r trustRoot -p codeSign -k "$keychain" "$tmp/cert.pem" >/dev/null 2>&1 \
-    || security add-trusted-cert -d -r trustAsRoot -p codeSign -k "$keychain" "$tmp/cert.pem" >/dev/null 2>&1 \
-    || true
-  rm -rf "$tmp"
-
-  find_codesign_identity
-}
-
-sign_app() {
-  local identity="$1"
-  codesign --force --deep --sign "$identity" \
-    --identifier "$LABEL" \
-    --entitlements "$SRC/Resources/CalendarBar.entitlements" \
-    "$DEST_APP"
-}
+# Stable identity in a dedicated keychain (no Keychain popups on every rebuild).
+# shellcheck source=lib/stable-codesign.sh
+source "$ROOT/scripts/lib/stable-codesign.sh"
 
 info "Building CalendarBar (release)…"
 (
@@ -152,24 +43,15 @@ xattr -cr "$DEST_APP" 2>/dev/null || true
 SIGNED_WITH="ad-hoc"
 if (( $+commands[codesign] )); then
   IDENTITY="$(ensure_codesign_identity || true)"
-  if [[ -n "${IDENTITY:-}" ]]; then
-    if sign_app "$IDENTITY"; then
-      SIGNED_WITH="$IDENTITY"
-      ok "Signed with $IDENTITY (Calendar grant survives rebuilds)"
-    else
-      warn "Signing with $IDENTITY failed — falling back to ad-hoc"
-      codesign --force --deep --sign - \
-        --entitlements "$SRC/Resources/CalendarBar.entitlements" \
-        "$DEST_APP" 2>/dev/null \
-        || warn "codesign failed"
-    fi
+  if [[ -n "${IDENTITY:-}" ]] \
+    && sign_app "$DEST_APP" --entitlements "$SRC/Resources/CalendarBar.entitlements"; then
+    SIGNED_WITH="$IDENTITY"
+    ok "Signed with $IDENTITY (Calendar grant survives rebuilds)"
   else
-    warn "No codesign identity — using ad-hoc (Calendar access may reset every rebuild)"
-    warn "Create one: Keychain Access → Certificate Assistant → Code Signing → name '$CODESIGN_IDENTITY'"
-    codesign --force --deep --sign - \
+    warn "Stable codesign failed — falling back to ad-hoc (Calendar access may reset each rebuild)"
+    codesign --force --sign - \
       --entitlements "$SRC/Resources/CalendarBar.entitlements" \
-      "$DEST_APP" 2>/dev/null \
-      || warn "codesign failed"
+      "$DEST_APP" 2>/dev/null || warn "codesign failed"
   fi
   codesign -d -r- "$DEST_APP" 2>&1 | sed -n 's/^designated => /  DR: /p' || true
 fi
