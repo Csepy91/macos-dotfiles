@@ -29,6 +29,11 @@ final class ConfigManager: ObservableObject {
         load()
     }
 
+    /// Cancel the filesystem watcher and pending reload/retry work.
+    func stop() {
+        stopWatching()
+    }
+
     /// Ensures the config directory exists. Does **not** seed `config.json` —
     /// that file is owned by theme apply / stow. Missing file → in-memory
     /// Catppuccin Macchiato defaults until a file appears.
@@ -78,7 +83,8 @@ final class ConfigManager: ObservableObject {
 
         source.setEventHandler { [weak self] in
             guard let self else { return }
-            let flags = source.data
+            // Read via self.source so the handler does not retain `source` (cycle).
+            let flags = self.source?.data ?? []
             self.scheduleReload()
             // Never cancel a DispatchSource from inside its own handler — defer.
             if flags.contains(.delete) || flags.contains(.rename) {
@@ -117,8 +123,12 @@ final class ConfigManager: ObservableObject {
 
     private func scheduleWatcherRestart() {
         restartWorkItem?.cancel()
+        // Atomic editors rename/delete the file; stopWatching cancels any pending
+        // debounced reload, so load here before re-attaching the watcher.
         let item = DispatchWorkItem { [weak self] in
-            self?.startWatching()
+            guard let self else { return }
+            self.load()
+            self.startWatching()
         }
         restartWorkItem = item
         DispatchQueue.main.async(execute: item)

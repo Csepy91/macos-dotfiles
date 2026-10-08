@@ -180,8 +180,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         battery.stop()
         wifi.stop()
         bluetooth.stop()
+        AppleMenuController.shared.dismiss()
+        WiFiMenuController.shared.dismiss()
+        BluetoothMenuController.shared.dismiss()
+        OmniWMControlsController.cleanup()
+        IPCServer.shared.stop()
+        configManager.stop()
         if let screenObserver {
             NotificationCenter.default.removeObserver(screenObserver)
+            screenObserver = nil
         }
     }
 

@@ -110,6 +110,14 @@ final class HotkeyManager {
         return true
     }
 
+    /// Drop the Carbon hotkey and callback (used on process terminate).
+    func shutdown() {
+        onHotkey = nil
+        unregister()
+        registeredSpec = ""
+        requestedSpec = ""
+    }
+
     private func unregister() {
         if let hotKeyRef {
             UnregisterEventHotKey(hotKeyRef)

@@ -164,4 +164,13 @@ enum OmniWMControlsController {
         dismissWatcher?.cancel()
         dismissWatcher = nil
     }
+
+    /// Drop monitors / watchers on process terminate.
+    @MainActor
+    static func cleanup() {
+        stopDismissWatcher()
+        removeMouseDownGuard()
+        openedByUs = false
+        suppressOpenUntil = nil
+    }
 }

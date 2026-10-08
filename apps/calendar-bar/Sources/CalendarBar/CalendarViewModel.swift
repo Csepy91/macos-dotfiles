@@ -60,11 +60,17 @@ final class CalendarViewModel: ObservableObject {
         selectedDate = calendar.startOfDay(for: now)
         displayedMonth = calendar.startOfDay(for: calendar.date(from: calendar.dateComponents([.year, .month], from: now))!)
         rebuildGrid()
+        applyShowEvents(showEvents)
+    }
+
+    /// Refresh or clear EventKit data without resetting the selected month/day.
+    func applyShowEvents(_ showEvents: Bool) {
         if showEvents {
             Task { await refreshAuthorizationAndEvents() }
         } else {
             events = []
             monthEventDays = []
+            rebuildGrid()
         }
     }
 

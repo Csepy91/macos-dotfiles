@@ -74,6 +74,8 @@ final class LauncherViewModel: ObservableObject {
     private var targetApp: NSRunningApplication?
     private var cancellables = Set<AnyCancellable>()
     private let clipboardStore = ClipboardHistoryStore.shared
+    private var accessibilityPollTask: Task<Void, Never>?
+    private var appsRefreshTask: Task<Void, Never>?
 
     init() {
         $query
@@ -111,14 +113,19 @@ final class LauncherViewModel: ObservableObject {
 
         if mode == .menu {
             refreshMenuCommands()
+        } else {
+            menuCommands = []
         }
 
         recompute(query: query, mode: mode)
 
-        Task {
-            apps = await AppScanner.shared.allApps()
-            if mode == .apps {
-                recompute(query: query, mode: mode)
+        appsRefreshTask?.cancel()
+        appsRefreshTask = Task { [weak self] in
+            let apps = await AppScanner.shared.allApps()
+            guard let self, !Task.isCancelled else { return }
+            self.apps = apps
+            if self.mode == .apps {
+                self.recompute(query: self.query, mode: self.mode)
             }
         }
     }
@@ -133,8 +140,22 @@ final class LauncherViewModel: ObservableObject {
         selectedIndex = 0
         if mode == .menu {
             refreshMenuCommands()
+        } else {
+            menuCommands = []
         }
         recompute(query: query, mode: mode)
+    }
+
+    /// Drop retained AX menu elements when the panel hides.
+    func clearMenuCommands() {
+        menuCommands = []
+    }
+
+    func cancelPendingWork() {
+        accessibilityPollTask?.cancel()
+        accessibilityPollTask = nil
+        appsRefreshTask?.cancel()
+        appsRefreshTask = nil
     }
 
     /// Drop stale AX refs when the scanned app quits.
@@ -162,12 +183,14 @@ final class LauncherViewModel: ObservableObject {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
-        Task { @MainActor in
+        accessibilityPollTask?.cancel()
+        accessibilityPollTask = Task { @MainActor [weak self] in
             for _ in 0..<30 {
                 try? await Task.sleep(nanoseconds: 500_000_000)
+                guard let self, !Task.isCancelled else { return }
                 if MenuBarScanner.isTrusted(prompt: false) {
-                    refreshMenuCommands()
-                    recompute(query: query, mode: mode)
+                    self.refreshMenuCommands()
+                    self.recompute(query: self.query, mode: self.mode)
                     return
                 }
             }
@@ -247,11 +270,14 @@ final class LauncherViewModel: ObservableObject {
     }
 
     func refreshApps() {
-        Task {
+        appsRefreshTask?.cancel()
+        appsRefreshTask = Task { [weak self] in
             await AppScanner.shared.refresh()
-            apps = await AppScanner.shared.allApps()
-            if mode == .apps {
-                recompute(query: query, mode: mode)
+            let apps = await AppScanner.shared.allApps()
+            guard let self, !Task.isCancelled else { return }
+            self.apps = apps
+            if self.mode == .apps {
+                self.recompute(query: self.query, mode: self.mode)
             }
         }
     }

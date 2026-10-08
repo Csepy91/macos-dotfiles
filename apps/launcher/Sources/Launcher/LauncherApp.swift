@@ -168,8 +168,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         blurSuppressWorkItem?.cancel()
         appRefreshWorkItem?.cancel()
         ClipboardHistoryStore.shared.stop()
+        HotkeyManager.shared.shutdown()
         removeKeyMonitor()
         removeWorkspaceObservers()
+        viewModel.cancelPendingWork()
+        IPCServer.shared.stop()
+        configManager.stop()
     }
 
     private func installWorkspaceObservers() {
@@ -279,6 +283,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard isShowing else { return }
         isShowing = false
         viewModel.isVisible = false
+        viewModel.clearMenuCommands()
         blurSuppressWorkItem?.cancel()
         blurSuppressWorkItem = nil
         suppressHideOnBlur = false
