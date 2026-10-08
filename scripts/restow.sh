@@ -16,5 +16,6 @@ eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || true)"
 
 pkgs=(${(z)$(features_stow_packages)})
 mkdir -p "$HOME/.config" "$HOME/.local/bin" "$HOME/Library/LaunchAgents"
-stow -d "$ROOT/packages" -t "$HOME" -R "$@" "${pkgs[@]}"
+# --no-folding: allow `theme apply` plain files alongside stowed symlinks
+stow -d "$ROOT/packages" -t "$HOME" -R --no-folding "$@" "${pkgs[@]}"
 print -r -- "Restowed: ${pkgs[*]}"

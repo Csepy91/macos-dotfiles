@@ -1,0 +1,3 @@
+#!/usr/bin/env zsh
+# theme — apply / list / current palette (generate-from-tokens)
+exec "${HOME}/.config/theme/apply.sh" "$@"

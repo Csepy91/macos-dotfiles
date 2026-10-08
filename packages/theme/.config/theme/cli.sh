@@ -1,8 +1,8 @@
-# Cinematic Noir — CLI tool color application
+# CLI tool color application from active palette tokens.
 # Sourced from ~/.zshrc after colors.sh. Safe no-ops when tools are absent.
 
 # --- bat ---------------------------------------------------------------------
-export BAT_THEME="CinematicNoir"
+export BAT_THEME="Dotfiles"
 
 # --- fzf ---------------------------------------------------------------------
 if (( $+commands[fzf] )); then

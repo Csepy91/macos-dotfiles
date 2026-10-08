@@ -1,4 +1,4 @@
--- Cinematic Noir — minimal Neovim config
+-- Minimal Neovim config — colorscheme from `theme apply` → colors/active.lua
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
@@ -19,4 +19,4 @@ vim.opt.scrolloff = 4
 vim.opt.clipboard = "unnamedplus"
 vim.opt.updatetime = 250
 
-vim.cmd.colorscheme("cinematic_noir")
+vim.cmd.colorscheme("active")

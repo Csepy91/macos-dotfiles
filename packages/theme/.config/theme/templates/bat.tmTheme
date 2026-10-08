@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>name</key>
-	<string>CinematicNoir</string>
+	<string>Dotfiles</string>
 	<key>author</key>
 	<string>dotfiles</string>
 	<key>settings</key>
@@ -12,27 +12,27 @@
 			<key>settings</key>
 			<dict>
 				<key>background</key>
-				<string>#0D0D13</string>
+				<string>{{BASE}}</string>
 				<key>foreground</key>
-				<string>#D0D2DF</string>
+				<string>{{FG}}</string>
 				<key>caret</key>
-				<string>#6F78C4</string>
+				<string>{{BLUE_BRIGHT}}</string>
 				<key>invisibles</key>
-				<string>#30344B</string>
+				<string>{{THEME_BORDER}}</string>
 				<key>lineHighlight</key>
-				<string>#161720</string>
+				<string>{{SURFACE}}</string>
 				<key>selection</key>
-				<string>#30344B</string>
+				<string>{{THEME_BORDER}}</string>
 				<key>selectionForeground</key>
-				<string>#D0D2DF</string>
+				<string>{{FG}}</string>
 				<key>findHighlight</key>
-				<string>#B07855</string>
+				<string>{{AMBER}}</string>
 				<key>findHighlightForeground</key>
-				<string>#0D0D13</string>
+				<string>{{BASE}}</string>
 				<key>gutter</key>
-				<string>#0D0D13</string>
+				<string>{{BASE}}</string>
 				<key>gutterForeground</key>
-				<string>#6D7291</string>
+				<string>{{MUTED}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -43,7 +43,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#6D7291</string>
+				<string>{{MUTED}}</string>
 				<key>fontStyle</key>
 				<string>italic</string>
 			</dict>
@@ -56,7 +56,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#668B78</string>
+				<string>{{GREEN}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -67,7 +67,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#B09A69</string>
+				<string>{{YELLOW}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -78,7 +78,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#B09A69</string>
+				<string>{{YELLOW}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -89,7 +89,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#B07855</string>
+				<string>{{AMBER}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -100,7 +100,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#668B78</string>
+				<string>{{GREEN}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -111,7 +111,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#8B68B5</string>
+				<string>{{PURPLE}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -122,7 +122,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#8B68B5</string>
+				<string>{{PURPLE}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -133,7 +133,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#608D9A</string>
+				<string>{{CYAN}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -144,7 +144,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#6F78C4</string>
+				<string>{{BLUE_BRIGHT}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -155,7 +155,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#6672B8</string>
+				<string>{{BLUE}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -166,7 +166,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#D0D2DF</string>
+				<string>{{FG}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -177,7 +177,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#B07855</string>
+				<string>{{AMBER}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -188,7 +188,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#6672B8</string>
+				<string>{{BLUE}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -199,7 +199,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#8B68B5</string>
+				<string>{{PURPLE}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -210,7 +210,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#608D9A</string>
+				<string>{{CYAN}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -221,7 +221,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#A76565</string>
+				<string>{{RED}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -232,7 +232,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#B07855</string>
+				<string>{{AMBER}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -243,7 +243,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#A76565</string>
+				<string>{{RED}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -254,7 +254,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#668B78</string>
+				<string>{{GREEN}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -265,7 +265,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#B09A69</string>
+				<string>{{YELLOW}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -276,7 +276,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#6F78C4</string>
+				<string>{{BLUE_BRIGHT}}</string>
 				<key>fontStyle</key>
 				<string>bold</string>
 			</dict>
@@ -289,7 +289,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#6672B8</string>
+				<string>{{BLUE}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -300,7 +300,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#D0D2DF</string>
+				<string>{{FG}}</string>
 				<key>fontStyle</key>
 				<string>bold</string>
 			</dict>
@@ -313,7 +313,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#D0D2DF</string>
+				<string>{{FG}}</string>
 				<key>fontStyle</key>
 				<string>italic</string>
 			</dict>
@@ -326,7 +326,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#668B78</string>
+				<string>{{GREEN}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -337,7 +337,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#6D7291</string>
+				<string>{{MUTED}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -348,7 +348,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#6672B8</string>
+				<string>{{BLUE}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -359,7 +359,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#6672B8</string>
+				<string>{{BLUE}}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -370,7 +370,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#608D9A</string>
+				<string>{{CYAN}}</string>
 			</dict>
 		</dict>
 	</array>

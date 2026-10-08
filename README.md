@@ -2,7 +2,7 @@
 
 Apple Silicon macOS rice built on **Homebrew** (all packages) and **GNU Stow** (config symlinks).
 
-**Theme:** Cinematic Noir — dark cinematic sci-fi (navy / slate blue / muted violet / amber). Master tokens live in `packages/theme/` → `~/.config/theme/`.
+**Theme:** generate-from-tokens. Palette tokens live in `packages/theme/.../palettes/`; `theme apply` renders app configs into `~/.config`. Default palette: **Cinematic Noir**.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Apple Silicon macOS rice built on **Homebrew** (all packages) and **GNU Stow** (
 | App hotkeys | skhd |
 | Terminal | Ghostty |
 | Shell | zsh + starship + plugins |
-| Theme | Cinematic Noir (central palette) |
+| Theme | `theme apply` (palettes under `packages/theme/`) |
 | Editor | Sublime Text |
 | Launcher | Custom notch Launcher (`Alt+R` / `Alt+Shift+R`) |
 | Packages | Homebrew |
@@ -40,8 +40,9 @@ The installer will:
 1. Install Homebrew (if needed)
 2. Let you toggle CLI tools, rice components, and GUI apps (`gum`)
 3. Write `hosts/<hostname>/features.conf` and a root `Brewfile`
-4. `brew bundle` + `stow` selected packages into `$HOME`
-5. Start sketchybar / borders / skhd / OmniWM services
+4. `brew bundle` + `stow --no-folding` selected packages into `$HOME`
+5. `theme apply` (renders palette into `~/.config`)
+6. Start sketchybar / borders / skhd / OmniWM services
 
 Homebrew 6+ requires tap trust for third-party formulae. The installer marks
 `FelixKratz/formulae/sketchybar` (and borders / skhd) as `trusted: true` in the
@@ -62,7 +63,7 @@ Then follow [docs/PERMISSIONS.md](docs/PERMISSIONS.md).
 
 ```text
 packages/          # Stow packages (mirror $HOME layout)
-  theme/           # ~/.config/theme/ (master palette)
+  theme/           # ~/.config/theme/ (palettes + templates + apply)
   zsh/             # ~/.zshrc
   git/             # ~/.gitconfig
   ghostty/         # ~/.config/ghostty/
@@ -85,67 +86,80 @@ Feature flags live in each host’s `features.conf`. Stow package selection and 
 
 ## Theme
 
-Master colors (`~/.config/theme/colors.sh` / `colors.env`):
-
-| Token | Hex | Role |
-| --- | --- | --- |
-| BASE | `#0D0D13` | Background |
-| SURFACE | `#161720` | Panels |
-| SURFACE_ALT | `#1D2030` | Elevated |
-| THEME_BORDER | `#30344B` | Borders |
-| FG | `#D0D2DF` | Primary text |
-| MUTED | `#6D7291` | Secondary |
-| BLUE | `#6672B8` | Accent |
-| BLUE_BRIGHT | `#6F78C4` | Focus |
-| PURPLE | `#8B68B5` | Secondary accent |
-| AMBER | `#B07855` | Warning |
-
-`./install.sh` rebuilds bat’s theme cache after stow. After a manual restow:
+Palettes are token files under `packages/theme/.config/theme/palettes/<name>/colors.sh`.
+Templates live in `templates/`. Stow links the theme engine; **`theme apply`**
+writes generated color files as plain files under `~/.config` (and Sublime).
 
 ```sh
-bat cache --build
+theme list                 # available palettes
+theme current              # active palette name
+theme apply azure-glow     # render + wallpaper (if present) + reload hooks
+theme apply cinematic-noir
 ```
+
+Palettes ship today: `cinematic-noir`, `obsidian-ice`, `deep-purple-cyan`,
+`black-amber`, `chrome-noir`, `azure-glow`, `cobalt2`. `azure-glow` and
+`cobalt2` are **omarchy themes** (stolen/adapted) — see each palette’s
+`ORIGIN.md`.
+Active name is in `~/.config/theme/active` (not committed). Optional
+`palettes/<name>/wallpaper.png` is applied on switch. Shell / sketchybar /
+borders `source ~/.config/theme/colors.sh`. Apps use stable names (`active`,
+`Dotfiles`).
+
+Token roles (values depend on the active palette):
+
+| Token | Role |
+| --- | --- |
+| BASE | Background |
+| SURFACE | Panels |
+| SURFACE_ALT | Elevated |
+| THEME_BORDER | Borders |
+| FG | Primary text |
+| MUTED | Secondary |
+| BLUE | Accent |
+| BLUE_BRIGHT | Focus |
+| PURPLE | Secondary accent |
+| AMBER | Warning |
+
+Add a palette by copying `palettes/cinematic-noir/` (tokens + optional
+`wallpaper.png`), retuning hex, then `theme apply <name>`.
+
+`./install.sh` runs `theme apply` after stow. Stow uses `--no-folding` so
+generated files are not written into `packages/`.
 
 ## Manual restow / rebundle
 
 ```sh
 brew bundle --file ~/dotfiles/Brewfile
 ./scripts/restow.sh
+theme apply "$(theme current)"
 # or
-stow -d ~/dotfiles/packages -t "$HOME" -R zsh theme git ghostty
+stow -d ~/dotfiles/packages -t "$HOME" -R --no-folding zsh theme git ghostty
 ```
 
 ## Reload after theme changes
 
+Prefer `theme apply <palette>` — it regenerates configs and runs reload hooks
+(sketchybar, borders, launcher, calendar-bar, bat cache). Additionally:
+
 ```sh
-# Shell
+# Shell (picks up cli.sh / fzf colors)
 exec zsh
 
 # Ghostty — reopen window / Cmd+Shift+, reload if configured
 
-# sketchybar
-brew services restart sketchybar
-# or: sketchybar --reload
-
-# jankyborders
-brew services restart borders
-
 # OmniWM — relaunch app or LaunchAgent
 launchctl kickstart -k "gui/$(id -u)/com.dotfiles.omniwm"
 
-# Launcher — rebuild app / reload config
-./scripts/install-launcher.sh
-launcher --reload
-
-# Sublime Text — reopen, or: Sublime Text → Preferences → Color Scheme
+# Sublime Text — reopen if the color scheme file changed
 ```
 
 ## Launcher
 
-Native SwiftUI notch panel (`apps/launcher/`). Stow package
-`packages/launcher` ships `~/.config/launcher/config.json` (Cinematic Noir
-tokens) and a `launcher` CLI shim. Built-in code fallback is Catppuccin
-Macchiato when the config file is absent.
+Native SwiftUI notch panel (`apps/launcher/`). `theme apply` writes
+`~/.config/launcher/config.json`; the stow package ships the `launcher` CLI
+shim (+ optional Catppuccin Macchiato sidecar for reference). Built-in code
+fallback is Catppuccin Macchiato when the config file is absent.
 
 ```sh
 ./scripts/install-launcher.sh   # → ~/Applications/Launcher.app + LaunchAgent

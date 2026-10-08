@@ -4,13 +4,13 @@
     "font_size": 13.0,
     "corner_radius": 12.0,
     "border_width": 1.5,
-    "background_color": "#161720",
-    "background_opacity": 0.92,
-    "border_color": "#6672B8",
-    "text_color": "#D0D2DF",
-    "subtext_color": "#6D7291",
-    "accent_color": "#B07855",
-    "today_background": "#1D2030"
+    "background_color": "{{SURFACE}}",
+    "background_opacity": 0.1,
+    "border_color": "{{BLUE}}",
+    "text_color": "{{FG}}",
+    "subtext_color": "{{MUTED}}",
+    "accent_color": "{{AMBER}}",
+    "today_background": "{{SURFACE_ALT}}"
   },
   "dimensions": {
     "width": 380,

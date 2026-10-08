@@ -256,6 +256,29 @@ brew_bundle() {
 
 # --- Stow --------------------------------------------------------------------
 
+# Render palette tokens into ~/.config (plain files). Runs after stow.
+apply_theme_palette() {
+  local palette="cinematic-noir"
+  if [[ -f "$HOME/.config/theme/active" ]]; then
+    palette="$(<"$HOME/.config/theme/active")"
+    palette="${palette%%$'\n'*}"
+  fi
+  local apply="$HOME/.config/theme/apply.sh"
+  if [[ ! -x "$apply" ]]; then
+    apply="$ROOT/packages/theme/.config/theme/apply.sh"
+  fi
+  if [[ ! -f "$apply" ]]; then
+    warn "theme apply.sh missing — skip palette render"
+    return 0
+  fi
+  info "Applying theme palette: $palette"
+  if zsh "$apply" apply "$palette"; then
+    ok "theme apply complete ($palette)"
+  else
+    warn "theme apply failed — run: theme apply $palette"
+  fi
+}
+
 stow_packages() {
   local -a pkgs
   pkgs=(${(z)$(features_stow_packages)})
@@ -270,13 +293,17 @@ stow_packages() {
 
   info "Stowing packages → \$HOME: ${pkgs[*]}"
   # Restow so re-runs update links; adopt conflicts only when --adopt is passed.
-  local -a stow_args=(-d "$ROOT/packages" -t "$HOME" -R)
+  # --no-folding: keep real dirs under ~/.config so `theme apply` can write plain
+  # generated theme files beside stowed symlinks without dirtying packages/.
+  local -a stow_args=(-d "$ROOT/packages" -t "$HOME" -R --no-folding)
   if $STOW_ADOPT; then
     stow_args+=(--adopt)
   fi
 
   stow "${stow_args[@]}" "${pkgs[@]}"
   ok "stow complete"
+
+  apply_theme_palette
 
   # Ensure sketchybar plugins + bordersrc are executable
   if [[ -d "$HOME/.config/sketchybar/plugins" ]]; then
@@ -624,7 +651,8 @@ Useful commands:
   /opt/homebrew/bin/skhd --install-service && /opt/homebrew/bin/skhd --start-service
   /opt/homebrew/bin/skhd --restart-service   # only after the service plist exists
   brew bundle --file $ROOT/Brewfile
-  stow -d $ROOT/packages -t \$HOME -R zsh theme git ghostty …
+  stow -d $ROOT/packages -t \$HOME -R --no-folding zsh theme git ghostty …
+  theme apply cinematic-noir      # render palette into ~/.config
   ./scripts/install-cli-apps.sh   # rebuild ~/Applications/{Yazi,Btop}.app
   ./scripts/install-launcher.sh   # rebuild ~/Applications/Launcher.app
   ./scripts/install-calendar-bar.sh  # rebuild ~/Applications/CalendarBar.app

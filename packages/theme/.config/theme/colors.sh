@@ -1,31 +1,27 @@
-# Cinematic Noir — master palette (single source of truth)
+# Thin wrapper — sources the active palette, then derives RGB helpers.
 # Sourced by shell tools and rice scripts. Do not add tool-specific logic here.
-#
-# Visual identity: dark cinematic sci-fi — navy / slate blue / muted violet / amber
 
-# --- Master tokens -----------------------------------------------------------
+# Resolve via this file’s real path (stow symlink → repo) so all palettes are visible
+# even when ~/.config/theme/palettes/ is an older partial directory tree.
+_THEME_DIR="${${(%):-%x}:A:h}"
+_THEME_ACTIVE_FILE="${HOME}/.config/theme/active"
+_THEME_NAME_FALLBACK="cinematic-noir"
 
-export THEME_NAME="cinematic-noir"
+if [[ -f "${_THEME_ACTIVE_FILE}" ]]; then
+  _THEME_ACTIVE="$(<"${_THEME_ACTIVE_FILE}")"
+  _THEME_ACTIVE="${_THEME_ACTIVE%%$'\n'*}"
+else
+  _THEME_ACTIVE="${_THEME_NAME_FALLBACK}"
+fi
 
-export BASE="#0D0D13"
-export SURFACE="#161720"
-export SURFACE_ALT="#1D2030"
-# Named THEME_BORDER — bare $BORDER collides with Charm gum's border-style enum.
-export THEME_BORDER="#30344B"
-export FG="#D0D2DF"
-export MUTED="#6D7291"
-export BLUE="#6672B8"
-export BLUE_BRIGHT="#6F78C4"
-export PURPLE="#8B68B5"
-export AMBER="#B07855"
+_THEME_PALETTE="${_THEME_DIR}/palettes/${_THEME_ACTIVE}/colors.sh"
+if [[ ! -f "${_THEME_PALETTE}" ]]; then
+  _THEME_ACTIVE="${_THEME_NAME_FALLBACK}"
+  _THEME_PALETTE="${_THEME_DIR}/palettes/${_THEME_ACTIVE}/colors.sh"
+fi
 
-# Semantic ANSI companions (restrained; used by terminals / diffs / git)
-export RED="#A76565"
-export GREEN="#668B78"
-export YELLOW="#B09A69"
-export CYAN="#608D9A"
-export MAGENTA="#80639A"
-export BLUE_ANSI="#596BA3"
+# shellcheck source=/dev/null
+source "${_THEME_PALETTE}"
 
 # --- Hex without '#' (SketchyBar / jankyborders 0xffRRGGBB) ------------------
 
@@ -42,6 +38,19 @@ export AMBER_RGB="${AMBER#\#}"
 export RED_RGB="${RED#\#}"
 export GREEN_RGB="${GREEN#\#}"
 export YELLOW_RGB="${YELLOW#\#}"
+export CYAN_RGB="${CYAN#\#}"
+export MAGENTA_RGB="${MAGENTA#\#}"
+export BLUE_ANSI_RGB="${BLUE_ANSI#\#}"
+
+# Decimal R,G,B CSV (ripgrep --colors)
+_theme_rgb_csv() {
+  local hex="${1#\#}"
+  printf '%d,%d,%d' "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
+}
+export PURPLE_RGB_CSV="$(_theme_rgb_csv "$PURPLE")"
+export MUTED_RGB_CSV="$(_theme_rgb_csv "$MUTED")"
+export BLUE_BRIGHT_RGB_CSV="$(_theme_rgb_csv "$BLUE_BRIGHT")"
+unfunction _theme_rgb_csv 2>/dev/null || true
 
 # --- Helpers -----------------------------------------------------------------
 
@@ -50,3 +59,5 @@ theme_argb() {
   local hex="${1#\#}"
   printf '0xff%s' "$hex"
 }
+
+unset _THEME_DIR _THEME_ACTIVE_FILE _THEME_NAME_FALLBACK _THEME_ACTIVE _THEME_PALETTE
