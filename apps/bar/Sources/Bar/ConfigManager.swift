@@ -117,7 +117,10 @@ final class ConfigManager: ObservableObject {
 
     private func scheduleWatcherRestart() {
         restartWorkItem?.cancel()
+        // Atomic editors rename/delete the file; stopWatching cancels any pending
+        // debounced reload, so load here before re-attaching the watcher.
         let item = DispatchWorkItem { [weak self] in
+            self?.load()
             self?.startWatching()
         }
         restartWorkItem = item
