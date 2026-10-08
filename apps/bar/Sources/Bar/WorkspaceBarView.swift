@@ -141,14 +141,11 @@ struct WorkspaceBarView: View {
 private struct BluetoothButton: View {
     @ObservedObject var bluetooth: BluetoothViewModel
     let theme: ThemeConfig
-    /// Class boxed in `@State` so identity survives body rebuilds without
-    /// mutating value-`@State` during `NSViewRepresentable.updateNSView`.
-    @State private var frameBox = ScreenFrameBox()
 
     var body: some View {
         Button {
             BluetoothMenuController.shared.toggle(
-                relativeTo: frameBox.rect,
+                relativeTo: ButtonScreenFrames.bluetooth.rect,
                 theme: theme
             )
         } label: {
@@ -172,7 +169,7 @@ private struct BluetoothButton: View {
         .help(bluetooth.helpText)
         .background(
             ScreenFrameReader { frame in
-                frameBox.rect = frame
+                ButtonScreenFrames.bluetooth.rect = frame
             }
         )
     }
@@ -191,12 +188,11 @@ private struct BluetoothButton: View {
 private struct WiFiButton: View {
     @ObservedObject var wifi: WiFiViewModel
     let theme: ThemeConfig
-    @State private var frameBox = ScreenFrameBox()
 
     var body: some View {
         Button {
             WiFiMenuController.shared.toggle(
-                relativeTo: frameBox.rect,
+                relativeTo: ButtonScreenFrames.wifi.rect,
                 theme: theme
             )
         } label: {
@@ -216,7 +212,7 @@ private struct WiFiButton: View {
         .help(wifi.ssid.map { "Wi-Fi: \($0)" } ?? "Wi-Fi")
         .background(
             ScreenFrameReader { frame in
-                frameBox.rect = frame
+                ButtonScreenFrames.wifi.rect = frame
             }
         )
     }
@@ -279,11 +275,10 @@ private struct BatteryButton: View {
 private struct ClockButton: View {
     let time: String
     let theme: ThemeConfig
-    @State private var frameBox = ScreenFrameBox()
 
     var body: some View {
         Button {
-            CalendarBarClient.toggle(anchor: frameBox.rect)
+            CalendarBarClient.toggle(anchor: ButtonScreenFrames.clock.rect)
         } label: {
             Text(time)
                 .font(clockFont)
@@ -297,7 +292,7 @@ private struct ClockButton: View {
         .help("Calendar")
         .background(
             ScreenFrameReader { frame in
-                frameBox.rect = frame
+                ButtonScreenFrames.clock.rect = frame
             }
         )
     }
@@ -315,12 +310,11 @@ private struct ClockButton: View {
 
 private struct AppleMenuButton: View {
     let theme: ThemeConfig
-    @State private var frameBox = ScreenFrameBox()
 
     var body: some View {
         Button {
             AppleMenuController.shared.toggle(
-                relativeTo: frameBox.rect,
+                relativeTo: ButtonScreenFrames.apple.rect,
                 theme: theme
             )
         } label: {
@@ -335,13 +329,23 @@ private struct AppleMenuButton: View {
         .help("Apple menu")
         .background(
             ScreenFrameReader { frame in
-                frameBox.rect = frame
+                ButtonScreenFrames.apple.rect = frame
             }
         )
     }
 }
 
-/// Mutable screen rect shared across SwiftUI body rebuilds.
+/// Mutable screen rects that outlive SwiftUI body rebuilds.
+///
+/// Avoid `@State` here: macOS 27 CLT ships SwiftUI's `State` as an external
+/// macro (`SwiftUIMacros`) but does not include the plugin binary (Xcode does).
+private enum ButtonScreenFrames {
+    static let bluetooth = ScreenFrameBox()
+    static let wifi = ScreenFrameBox()
+    static let clock = ScreenFrameBox()
+    static let apple = ScreenFrameBox()
+}
+
 private final class ScreenFrameBox {
     var rect: NSRect = .zero
 }
