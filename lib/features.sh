@@ -34,6 +34,7 @@ features_set_defaults() {
   APPS_iina=true
   APPS_libreoffice=true
   APPS_geForceNow=false
+  APPS_zen=true
 }
 
 # Load KEY=value pairs from a features.conf (safe: only known keys).
@@ -50,7 +51,7 @@ features_load() {
     case "$key" in
       CLI_bat|CLI_btop|CLI_duti|CLI_eza|CLI_fd|CLI_fzf|CLI_gh|CLI_git|CLI_ncdu|CLI_nvim|CLI_ripgrep|CLI_starship|CLI_tldr|CLI_uv|CLI_zoxide|CLI_yazi|\
       RICE_omniwm|RICE_skhd|RICE_ghostty|RICE_launcher|RICE_calendar|RICE_bar|\
-      APPS_cursor|APPS_sublimeText|APPS_teamviewer|APPS_transmission|APPS_iina|APPS_libreoffice|APPS_geForceNow)
+      APPS_cursor|APPS_sublimeText|APPS_teamviewer|APPS_transmission|APPS_iina|APPS_libreoffice|APPS_geForceNow|APPS_zen)
         eval "$key=$([[ "$val" == "true" ]] && echo true || echo false)"
         ;;
     esac
@@ -92,6 +93,7 @@ APPS_transmission=${APPS_transmission}
 APPS_iina=${APPS_iina}
 APPS_libreoffice=${APPS_libreoffice}
 APPS_geForceNow=${APPS_geForceNow}
+APPS_zen=${APPS_zen}
 EOF
 }
 
@@ -131,6 +133,7 @@ features_brew_casks() {
   $APPS_iina && out+=(iina)
   $APPS_libreoffice && out+=(libreoffice)
   $APPS_geForceNow && out+=(nvidia-geforce-now)
+  $APPS_zen && out+=(zen)
   # Fonts (cask)
   out+=(
     font-jetbrains-mono-nerd-font

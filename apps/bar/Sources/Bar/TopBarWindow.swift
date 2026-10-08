@@ -83,6 +83,19 @@ final class TopBarWindow: NSPanel {
     }
 
     func showBar() {
+        setHiddenForFullscreen(false)
+    }
+
+    /// Instant hide/show for native macOS fullscreen Spaces.
+    func setHiddenForFullscreen(_ hidden: Bool) {
+        if hidden {
+            AppleMenuController.shared.dismiss()
+            WiFiMenuController.shared.dismiss()
+            BluetoothMenuController.shared.dismiss()
+            alphaValue = 0
+            orderOut(nil)
+            return
+        }
         reposition(animated: false)
         alphaValue = 1
         orderFrontRegardless()

@@ -72,7 +72,7 @@ apply_selection() {
   case "$prefix" in
     CLI) all_keys=(bat btop duti eza fd fzf gh git ncdu nvim ripgrep starship tldr uv zoxide yazi) ;;
     RICE) all_keys=(omniwm skhd ghostty launcher calendar bar) ;;
-    APPS) all_keys=(cursor sublimeText teamviewer transmission iina libreoffice geForceNow) ;;
+    APPS) all_keys=(cursor sublimeText teamviewer transmission iina libreoffice geForceNow zen) ;;
   esac
   local key
   for key in "${all_keys[@]}"; do
@@ -118,7 +118,7 @@ gum_selected_args() {
 interactive_select() {
   local -a cli_keys=(bat btop duti eza fd fzf gh git ncdu nvim ripgrep starship tldr uv zoxide yazi)
   local -a rice_keys=(omniwm skhd ghostty launcher calendar bar)
-  local -a apps_keys=(cursor sublimeText teamviewer transmission iina libreoffice geForceNow)
+  local -a apps_keys=(cursor sublimeText teamviewer transmission iina libreoffice geForceNow zen)
   local sel
   local -a gum_selected
 

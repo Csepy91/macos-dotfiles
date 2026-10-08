@@ -108,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let battery = BatteryViewModel()
     private let wifi = WiFiViewModel()
     private let bluetooth = BluetoothViewModel()
+    private let fullscreenMonitor = FullscreenMonitor()
     private let configManager = ConfigManager.shared
     private var window: TopBarWindow?
     private var cancellables = Set<AnyCancellable>()
@@ -142,12 +143,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] config in
                 guard let self else { return }
                 self.viewModel.updateConfig(config)
+                self.fullscreenMonitor.barHeight = CGFloat(config.dimensions.height)
                 // Chrome only — WorkspaceBarView already observes configManager / viewModel.
                 self.window?.apply(config: config)
             }
             .store(in: &cancellables)
 
         viewModel.updateConfig(configManager.config)
+        fullscreenMonitor.barHeight = CGFloat(configManager.config.dimensions.height)
         viewModel.start()
         frontApp.start()
         clock.start()
@@ -158,13 +161,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ensureWindow()
         window?.showBar()
 
+        fullscreenMonitor.$shouldHideBar
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] hide in
+                self?.window?.setHiddenForFullscreen(hide)
+            }
+            .store(in: &cancellables)
+        fullscreenMonitor.start()
+
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.window?.reposition(animated: false)
+                guard let self else { return }
+                if !self.fullscreenMonitor.shouldHideBar {
+                    self.window?.reposition(animated: false)
+                }
             }
         }
 
@@ -180,14 +195,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         battery.stop()
         wifi.stop()
         bluetooth.stop()
+        fullscreenMonitor.stop()
         AppleMenuController.shared.dismiss()
         WiFiMenuController.shared.dismiss()
         BluetoothMenuController.shared.dismiss()
         OmniWMControlsController.cleanup()
         IPCServer.shared.stop()
         configManager.stop()
-        if let screenObserver {
-            NotificationCenter.default.removeObserver(screenObserver)
+        if let observer = screenObserver {
+            NotificationCenter.default.removeObserver(observer)
             screenObserver = nil
         }
     }

@@ -93,22 +93,31 @@ actor AppScanner {
     private func defaultRoots() -> [URL] {
         var roots: [URL] = [
             URL(fileURLWithPath: "/Applications", isDirectory: true),
-            URL(fileURLWithPath: "/System/Applications", isDirectory: true)
+            URL(fileURLWithPath: "/System/Applications", isDirectory: true),
+            // Safari (and other sealed system apps) live in the cryptex; /Applications/Safari.app
+            // is only a hidden symlink that FileManager can skip depending on options.
+            URL(fileURLWithPath: "/System/Cryptexes/App/System/Applications", isDirectory: true),
+            URL(
+                fileURLWithPath: "/System/Volumes/Preboot/Cryptexes/App/System/Applications",
+                isDirectory: true
+            )
         ]
         let homeApps = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Applications", isDirectory: true)
         if FileManager.default.fileExists(atPath: homeApps.path) {
             roots.append(homeApps)
         }
-        return roots
+        return roots.filter { FileManager.default.fileExists(atPath: $0.path) }
     }
 
     private func enumerateApps(at root: URL) -> [URL] {
         let fm = FileManager.default
+        // Do not use `.skipsHiddenFiles`: on modern macOS `/Applications/Safari.app` is a
+        // symlink with the UF_HIDDEN flag, so that option drops Safari entirely.
         guard let enumerator = fm.enumerator(
             at: root,
-            includingPropertiesForKeys: [.isApplicationKey, .isDirectoryKey],
-            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsPackageDescendants]
         ) else {
             return []
         }

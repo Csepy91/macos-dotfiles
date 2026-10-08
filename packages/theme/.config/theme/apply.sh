@@ -203,6 +203,97 @@ theme_patch_omniwm_colors() {
   /usr/bin/env python3 "${patcher}" "${dest}"
 }
 
+# Resolve Zen Browser profile directories (macOS Application Support).
+theme_zen_profiles() {
+  local support="${HOME}/Library/Application Support/zen"
+  local profiles_ini="${support}/profiles.ini"
+  [[ -d "${support}" ]] || return 1
+
+  local -a paths=()
+  local line rel path
+  if [[ -f "${profiles_ini}" ]]; then
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+      [[ "${line}" == Path=* ]] || continue
+      rel="${line#Path=}"
+      if [[ "${rel}" == /* ]]; then
+        path="${rel}"
+      else
+        path="${support}/${rel}"
+      fi
+      [[ -d "${path}" ]] && paths+=("${path}")
+    done <"${profiles_ini}"
+  fi
+
+  if (( ${#paths[@]} == 0 )); then
+    for path in "${support}/Profiles"/*(N/); do
+      [[ -f "${path}/prefs.js" ]] && paths+=("${path}")
+    done
+  fi
+
+  (( ${#paths[@]} > 0 )) || return 1
+  print -l -- "${paths[@]}"
+}
+
+# Ensure userChrome.css is honored (read from user.js on next Zen start).
+theme_ensure_zen_userjs() {
+  local dest="$1/user.js"
+  local pref='user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);'
+  local begin="// BEGIN dotfiles-theme"
+  local end="// END dotfiles-theme"
+  local block="${begin}
+${pref}
+${end}"
+
+  if [[ -f "${dest}" ]]; then
+    local content
+    content="$(<"${dest}")"
+    # Strip a previous managed block, then any stray copies of the pref line.
+    content="$(print -r -- "${content}" | awk -v b="${begin}" -v e="${end}" '
+      $0 == b { skip=1; next }
+      $0 == e { skip=0; next }
+      skip { next }
+      /toolkit\.legacyUserProfileCustomizations\.stylesheets/ { next }
+      { print }
+    ')"
+    content="${content%%$'\n'}"
+    if [[ -n "${content}" ]]; then
+      theme_write "${dest}" "${content}"$'\n\n'"${block}"
+    else
+      theme_write "${dest}" "${block}"
+    fi
+  else
+    theme_write "${dest}" "${block}"
+  fi
+}
+
+# Write palette-driven userChrome/userContent into every Zen profile.
+theme_apply_zen() {
+  local -a profiles
+  profiles=("${(@f)$(theme_zen_profiles 2>/dev/null || true)}")
+  if (( ${#profiles[@]} == 0 )); then
+    theme_info "skip Zen — no profile under ~/Library/Application Support/zen"
+    return 0
+  fi
+
+  local chrome_tmpl="${TEMPLATES_DIR}/zen.userChrome.css"
+  local content_tmpl="${TEMPLATES_DIR}/zen.userContent.css"
+  [[ -f "${chrome_tmpl}" ]] || theme_die "missing template: zen.userChrome.css"
+  [[ -f "${content_tmpl}" ]] || theme_die "missing template: zen.userContent.css"
+
+  local chrome_rendered content_rendered profile
+  chrome_rendered="$(theme_render "${chrome_tmpl}")"
+  content_rendered="$(theme_render "${content_tmpl}")"
+
+  for profile in "${profiles[@]}"; do
+    mkdir -p "${profile}/chrome"
+    theme_write "${profile}/chrome/userChrome.css" "${chrome_rendered}"
+    theme_write "${profile}/chrome/userContent.css" "${content_rendered}"
+    theme_ensure_zen_userjs "${profile}"
+    theme_info "wrote Zen chrome → ${profile}/chrome/"
+  done
+  theme_info "Zen: restart the browser (or Style Editor reload) to pick up CSS"
+}
+
 theme_reload() {
   theme_reload_omniwm || true
   theme_reload_app launcher Launcher || true
@@ -257,11 +348,14 @@ theme_apply() {
   # OmniWM settings.toml color tables (borders / overview / workspaceBar).
   theme_patch_omniwm_colors
 
+  # Zen Browser userChrome / userContent (profile chrome/).
+  theme_apply_zen
+
   theme_info "active → ${name}"
 
   theme_set_wallpaper "${name}"
   theme_reload
-  theme_info "reload hooks finished (new shells pick up cli.sh; Ghostty may need a reload)"
+  theme_info "reload hooks finished (new shells pick up cli.sh; Ghostty/Zen may need a reload)"
 }
 
 cmd="${1:-}"

@@ -119,15 +119,9 @@ final class LauncherViewModel: ObservableObject {
 
         recompute(query: query, mode: mode)
 
-        appsRefreshTask?.cancel()
-        appsRefreshTask = Task { [weak self] in
-            let apps = await AppScanner.shared.allApps()
-            guard let self, !Task.isCancelled else { return }
-            self.apps = apps
-            if self.mode == .apps {
-                self.recompute(query: self.query, mode: self.mode)
-            }
-        }
+        // Always rescan on show — brew installs / drag-installs do not emit
+        // NSWorkspace launch notifications, so a cached list can miss new apps.
+        refreshApps()
     }
 
     func toggleMode() {
