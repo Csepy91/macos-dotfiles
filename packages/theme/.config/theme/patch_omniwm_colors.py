@@ -70,6 +70,32 @@ def env_hex(name: str) -> str:
     return val
 
 
+def enable_borders_section(text: str) -> str:
+    """Force ``[borders].enabled = true`` without touching other tables."""
+    pattern = re.compile(
+        r"(^\[borders\]\n)(.*?)(?=^\[|\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+
+    def repl(match: re.Match[str]) -> str:
+        head, body = match.group(1), match.group(2)
+        if re.search(r"(?m)^enabled\s*=", body):
+            body = re.sub(
+                r"(?m)^(enabled\s*=\s*)\S+",
+                r"\1true",
+                body,
+                count=1,
+            )
+        else:
+            body = "enabled = true\n" + body.lstrip("\n")
+        return head + body
+
+    new_text, n = pattern.subn(repl, text, count=1)
+    if n != 1:
+        raise RuntimeError("section [borders] not found in OmniWM settings")
+    return new_text
+
+
 def main() -> int:
     path = Path(
         sys.argv[1]
@@ -83,20 +109,9 @@ def main() -> int:
     text = path.read_text(encoding="utf-8")
 
     # This rice uses OmniWM built-in borders (jankyborders removed).
-    text, n_en = re.subn(
-        r"(?ms)(^\[borders\]\n(?:.*?\n)*?)(^enabled\s*=\s*)\S+",
-        r"\1\2true",
-        text,
-        count=1,
-    )
-    if n_en != 1:
-        # Fallback: simple line under [borders] if structure differs.
-        text, _ = re.subn(
-            r"(?m)^(enabled\s*=\s*)false(\s*)$",
-            r"\1true\2",
-            text,
-            count=1,
-        )
+    # Only touch the [borders] table — never walk into later sections
+    # (a cross-section search previously flipped [hiddenBar] enabled).
+    text = enable_borders_section(text)
 
     # Map OmniWM color tables → palette tokens (focus / accent / chrome).
     mapping = {

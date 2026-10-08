@@ -81,6 +81,7 @@ final class OmniWMService {
     private var stdoutPipe: Pipe?
     private var stderrPipe: Pipe?
     private var readHandle: FileHandle?
+    private var stderrHandle: FileHandle?
     private var notificationObserver: NSObjectProtocol?
     private var restartWorkItem: DispatchWorkItem?
     private var refreshDebounce: DispatchWorkItem?
@@ -245,6 +246,16 @@ final class OmniWMService {
                 self?.scheduleRefreshFromEvent()
             }
         }
+
+        // Drain stderr so a chatty omniwmctl cannot fill the pipe and stall.
+        let errHandle = stderr.fileHandleForReading
+        stderrHandle = errHandle
+        errHandle.readabilityHandler = { fileHandle in
+            let chunk = fileHandle.availableData
+            if chunk.isEmpty {
+                fileHandle.readabilityHandler = nil
+            }
+        }
     }
 
     private func scheduleRefreshFromEvent() {
@@ -271,6 +282,8 @@ final class OmniWMService {
     private func tearDownSubscription() {
         readHandle?.readabilityHandler = nil
         readHandle = nil
+        stderrHandle?.readabilityHandler = nil
+        stderrHandle = nil
         if let process = subscribeProcess, process.isRunning {
             process.terminationHandler = nil
             process.terminate()

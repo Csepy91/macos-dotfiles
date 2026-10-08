@@ -65,6 +65,10 @@ enum CalendarBarClient {
         return written == message.count
     }
 
+    /// Retains long-lived children until they exit (Foundation requires it).
+    private static let processLock = NSLock()
+    private static var retainedProcesses: [Process] = []
+
     private static func launch(_ args: [String]) {
         let candidates = [
             NSHomeDirectory() + "/Applications/CalendarBar.app/Contents/MacOS/CalendarBar",
@@ -79,6 +83,21 @@ enum CalendarBarClient {
         process.arguments = args
         process.standardOutput = Pipe()
         process.standardError = Pipe()
-        try? process.run()
+        process.terminationHandler = { finished in
+            processLock.lock()
+            retainedProcesses.removeAll { $0 === finished }
+            processLock.unlock()
+        }
+        processLock.lock()
+        retainedProcesses.append(process)
+        processLock.unlock()
+        do {
+            try process.run()
+        } catch {
+            processLock.lock()
+            retainedProcesses.removeAll { $0 === process }
+            processLock.unlock()
+            NSLog("[Bar] Failed to launch CalendarBar: \(error)")
+        }
     }
 }

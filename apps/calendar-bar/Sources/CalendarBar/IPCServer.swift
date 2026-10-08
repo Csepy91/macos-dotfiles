@@ -91,7 +91,10 @@ final class IPCServer {
         send(.ping)
     }
 
-    func start() {
+    /// Bind the IPC socket. Returns `false` if another process won the race
+    /// (or bind failed) — callers must exit without showing UI.
+    @discardableResult
+    func start() -> Bool {
         let url = Self.socketURL
         // Only unlink if we are becoming the daemon; callers must ensure no live peer.
         try? FileManager.default.removeItem(at: url)
@@ -106,9 +109,10 @@ final class IPCServer {
         }
         guard listener.start() else {
             NSLog("[CalendarBar] IPC listen failed at \(url.path)")
-            return
+            return false
         }
         self.listener = listener
+        return true
     }
 
     /// Attempt to send a command to a running instance. Returns `true` if delivered.

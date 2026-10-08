@@ -120,7 +120,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.handle(command)
             }
         }
-        IPCServer.shared.start()
+        // Lost the ping→bind race: forward any CLI action and exit without UI.
+        guard IPCServer.shared.start() else {
+            if let initialCommand {
+                _ = IPCServer.send(initialCommand)
+            }
+            NSLog("[Launcher] Another daemon owns IPC — exiting")
+            NSApp.terminate(nil)
+            return
+        }
 
         if registerHotkey {
             HotkeyManager.shared.onHotkey = { [weak self] in
