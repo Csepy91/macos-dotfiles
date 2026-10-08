@@ -1,12 +1,10 @@
 import Foundation
 
 enum IPCCommand: Equatable {
-    case toggle(anchor: CGRect?)
-    case show(anchor: CGRect?)
-    case hide
-    case reload
-    /// Probe used for single-instance detection (no UI side effects).
     case ping
+    case reload
+    case refresh
+    case omniwmSpace(String)
 
     static func parse(_ line: String) -> IPCCommand? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -15,64 +13,40 @@ enum IPCCommand: Equatable {
         let parts = trimmed.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
         let head = parts[0].lowercased()
         let rest = parts.count > 1 ? String(parts[1]).trimmingCharacters(in: .whitespacesAndNewlines) : ""
-        let anchor = Self.parseAnchor(rest)
 
         switch head {
         case "ping":
             return .ping
         case "reload":
             return .reload
-        case "hide":
-            return .hide
-        case "show":
-            return .show(anchor: anchor)
-        case "toggle":
-            return .toggle(anchor: anchor)
+        case "refresh":
+            return .refresh
+        case "omniwm-space", "omniwm_space", "space":
+            return .omniwmSpace(rest)
         default:
             return nil
         }
-    }
-
-    /// `x,y,w,h` in AppKit screen coordinates.
-    private static func parseAnchor(_ raw: String) -> CGRect? {
-        let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleaned.isEmpty else { return nil }
-        let bits = cleaned.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        guard bits.count == 4,
-              let x = Double(bits[0]),
-              let y = Double(bits[1]),
-              let w = Double(bits[2]),
-              let h = Double(bits[3])
-        else { return nil }
-        return CGRect(x: x, y: y, width: w, height: h)
     }
 
     var wireValue: String {
         switch self {
         case .ping: return "ping"
         case .reload: return "reload"
-        case .hide: return "hide"
-        case .show(let anchor):
-            if let anchor { return "show \(Self.encodeAnchor(anchor))" }
-            return "show"
-        case .toggle(let anchor):
-            if let anchor { return "toggle \(Self.encodeAnchor(anchor))" }
-            return "toggle"
+        case .refresh: return "refresh"
+        case .omniwmSpace(let payload):
+            if payload.isEmpty { return "omniwm-space" }
+            return "omniwm-space \(payload)"
         }
-    }
-
-    private static func encodeAnchor(_ rect: CGRect) -> String {
-        "\(rect.origin.x),\(rect.origin.y),\(rect.size.width),\(rect.size.height)"
     }
 }
 
-/// Unix-domain socket so `calendar-bar --toggle` / `--reload` can talk to the
-/// long-running LSUIElement instance (skhd / Bar-friendly).
+/// Unix-domain socket so `bar --reload` / `--omniwm-space` can talk to the
+/// long-running LSUIElement instance (skhd / OmniWM-friendly).
 final class IPCServer {
     static let shared = IPCServer()
 
     private var listener: UnixSocketListener?
-    private let queue = DispatchQueue(label: "com.dotfiles.calendar-bar.ipc")
+    private let queue = DispatchQueue(label: "com.dotfiles.bar.ipc")
 
     var onCommand: ((IPCCommand) -> Void)?
 
@@ -81,12 +55,12 @@ final class IPCServer {
     static var socketURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-        let dir = base.appendingPathComponent("CalendarBar", isDirectory: true)
+        let dir = base.appendingPathComponent("Bar", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("ipc.sock")
     }
 
-    /// Returns `true` if another CalendarBar daemon already owns the IPC socket.
+    /// Returns `true` if another Bar daemon already owns the IPC socket.
     static func isDaemonRunning() -> Bool {
         send(.ping)
     }
@@ -99,13 +73,13 @@ final class IPCServer {
         let listener = UnixSocketListener(path: url.path, queue: queue)
         listener.onMessage = { [weak self] line in
             guard let command = IPCCommand.parse(line) else { return }
-            if case .ping = command { return }
+            if command == .ping { return }
             DispatchQueue.main.async {
                 self?.onCommand?(command)
             }
         }
         guard listener.start() else {
-            NSLog("[CalendarBar] IPC listen failed at \(url.path)")
+            NSLog("[Bar] IPC listen failed at \(url.path)")
             return
         }
         self.listener = listener
@@ -169,6 +143,7 @@ private final class UnixSocketListener {
             return false
         }
 
+        // Restrict socket to the current user.
         chmod(path, S_IRUSR | S_IWUSR)
 
         let fd = serverFD
@@ -176,6 +151,7 @@ private final class UnixSocketListener {
         source.setEventHandler { [weak self] in
             self?.acceptClient()
         }
+        // Own the FD exclusively in the cancel handler — never close twice.
         source.setCancelHandler { [weak self] in
             close(fd)
             self?.serverFD = -1
@@ -190,7 +166,7 @@ private final class UnixSocketListener {
         guard client >= 0 else { return }
         defer { close(client) }
 
-        var buffer = [UInt8](repeating: 0, count: 512)
+        var buffer = [UInt8](repeating: 0, count: 4096)
         let n = read(client, &buffer, buffer.count)
         guard n > 0 else { return }
         let data = Data(buffer.prefix(n))
@@ -200,6 +176,7 @@ private final class UnixSocketListener {
     }
 
     deinit {
+        // Cancel closes the FD once via setCancelHandler. Do not close again.
         if let source {
             source.cancel()
             self.source = nil

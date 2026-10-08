@@ -17,14 +17,14 @@ missing. A Catppuccin Macchiato sidecar JSON remains for reference.
 | Click day | Select + show agenda |
 | `Esc` | Hide |
 
-## CLI (sketchybar)
+## CLI
 
 ```sh
 calendar-bar --toggle    # show / hide
 calendar-bar --reload    # re-read config.json
 ```
 
-Rice default: sketchybar clock click → `calendar-bar --toggle`.
+Wire `calendar-bar --toggle` from skhd (or another hotkey) as needed.
 
 ## Build / install
 
@@ -33,4 +33,4 @@ Rice default: sketchybar clock click → `calendar-bar --toggle`.
 ```
 
 Installs `~/Applications/CalendarBar.app`, a `calendar-bar` shim on `PATH`, and
-loads the LaunchAgent so the agent is ready for sketchybar.
+loads the LaunchAgent so the agent is ready for CLI / skhd.

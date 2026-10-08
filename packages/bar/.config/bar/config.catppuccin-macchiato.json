@@ -1,0 +1,25 @@
+{
+  "theme": {
+    "font_family": "SF Pro Text",
+    "font_size": 13.0,
+    "corner_radius": 0.0,
+    "border_width": 0.0,
+    "background_color": "#24273a",
+    "background_opacity": 0.85,
+    "border_color": "#b7bdf8",
+    "text_color": "#cad3f5",
+    "subtext_color": "#a5adcb",
+    "accent_color": "#f5a97f",
+    "active_workspace_bg": "#363a4f"
+  },
+  "dimensions": {
+    "height": 38,
+    "margin_top": 0,
+    "padding_horizontal": 12
+  },
+  "workspaces": {
+    "display_type": "pills",
+    "show_empty": true,
+    "filter_raw_names": ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+  }
+}

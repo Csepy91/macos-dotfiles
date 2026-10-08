@@ -23,7 +23,7 @@ fi
 # shellcheck source=/dev/null
 source "${_THEME_PALETTE}"
 
-# --- Hex without '#' (SketchyBar / jankyborders 0xffRRGGBB) ------------------
+# --- Hex without '#' (ARGB helpers 0xffRRGGBB) --------------------------------
 
 export BASE_RGB="${BASE#\#}"
 export SURFACE_RGB="${SURFACE#\#}"

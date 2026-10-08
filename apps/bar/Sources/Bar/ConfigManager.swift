@@ -1,0 +1,120 @@
+import Combine
+import Foundation
+
+/// Loads `~/.config/bar/config.json` and hot-reloads on change.
+@MainActor
+final class ConfigManager: ObservableObject {
+    static let shared = ConfigManager()
+
+    @Published private(set) var config: BarConfig = .default
+
+    private var source: DispatchSourceFileSystemObject?
+    private var reloadWorkItem: DispatchWorkItem?
+    private var restartWorkItem: DispatchWorkItem?
+
+    var configURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/bar/config.json")
+    }
+
+    private init() {
+        load()
+        startWatching()
+    }
+
+    func reload() {
+        load()
+    }
+
+    /// Ensures the config directory exists. Does **not** seed `config.json` —
+    /// that file is owned by theme apply / stow. Missing file → in-memory
+    /// Catppuccin Macchiato defaults until a file appears.
+    func ensureDefaultConfigExists() {
+        let dir = configURL.deletingLastPathComponent()
+        if !FileManager.default.fileExists(atPath: dir.path) {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+    }
+
+    private func load() {
+        let url = configURL
+        guard FileManager.default.fileExists(atPath: url.path),
+              let data = try? Data(contentsOf: url)
+        else {
+            config = .default
+            return
+        }
+
+        do {
+            let decoder = JSONDecoder()
+            config = try decoder.decode(BarConfig.self, from: data)
+        } catch {
+            NSLog("[Bar] Failed to parse config.json: \(error)")
+            // Keep last-known-good config rather than thrashing on a typo mid-edit.
+        }
+    }
+
+    private func startWatching() {
+        stopWatching()
+        ensureDefaultConfigExists()
+
+        let path = configURL.path
+        let fd = open(path, O_EVTONLY)
+        guard fd >= 0 else {
+            // Theme apply / user may create the file later — keep defaults and retry.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                self?.load()
+                self?.startWatching()
+            }
+            return
+        }
+
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd,
+            eventMask: [.write, .rename, .delete, .extend, .attrib],
+            queue: .main
+        )
+
+        source.setEventHandler { [weak self] in
+            guard let self else { return }
+            let flags = source.data
+            self.scheduleReload()
+            // Never cancel a DispatchSource from inside its own handler — defer.
+            if flags.contains(.delete) || flags.contains(.rename) {
+                self.scheduleWatcherRestart()
+            }
+        }
+
+        source.setCancelHandler {
+            close(fd)
+        }
+
+        self.source = source
+        source.resume()
+    }
+
+    private func scheduleReload() {
+        reloadWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.load()
+        }
+        reloadWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: item)
+    }
+
+    private func scheduleWatcherRestart() {
+        restartWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.startWatching()
+        }
+        restartWorkItem = item
+        DispatchQueue.main.async(execute: item)
+    }
+
+    private func stopWatching() {
+        restartWorkItem?.cancel()
+        restartWorkItem = nil
+        source?.cancel()
+        source = nil
+    }
+}

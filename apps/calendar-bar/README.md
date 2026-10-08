@@ -36,4 +36,4 @@ calendar-bar --toggle
 calendar-bar --reload
 ```
 
-Sketchybar clock click is wired to `--toggle`.
+Toggle via `calendar-bar --toggle` (skhd or other hotkey).

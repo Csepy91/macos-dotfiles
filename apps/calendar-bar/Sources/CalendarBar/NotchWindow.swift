@@ -1,11 +1,14 @@
 import AppKit
 import SwiftUI
 
-/// Floating NSPanel anchored directly beneath the primary display notch.
+/// Floating NSPanel anchored under a caller-provided rect (e.g. the Bar clock),
+/// falling back to centered beneath the notch when no anchor is set.
 final class NotchWindow: NSPanel {
     private var config: CalendarConfig
     private var blurView: NSVisualEffectView?
     private(set) var hostingView: NSHostingView<CalendarView>?
+    /// AppKit screen rect of the control that opened the panel (e.g. clock).
+    var anchorRect: NSRect?
 
     init(config: CalendarConfig, rootView: CalendarView) {
         self.config = config
@@ -114,22 +117,14 @@ final class NotchWindow: NSPanel {
     func updateHeight(_ contentHeight: CGFloat) {
         let width = config.dimensions.width
         let height = min(max(contentHeight, 120), config.dimensions.maxHeight)
-        var newFrame = frame
-        let screen = anchorScreen()
-        let topY = notchBottomY(on: screen)
-        newFrame.size = NSSize(width: width, height: height)
-        newFrame.origin.x = screen.frame.midX - width / 2
-        newFrame.origin.y = topY - height
-        setFrame(newFrame, display: true)
+        let rect = placement(width: width, height: height)
+        setFrame(rect, display: true)
     }
 
     func reposition(animated: Bool) {
-        let screen = anchorScreen()
         let width = config.dimensions.width
         let height = frame.height > 0 ? frame.height : 320
-        let topY = notchBottomY(on: screen)
-        let origin = NSPoint(x: screen.frame.midX - width / 2, y: topY - height)
-        let rect = NSRect(origin: origin, size: NSSize(width: width, height: height))
+        let rect = placement(width: width, height: height)
         if animated {
             animator().setFrame(rect, display: true)
         } else {
@@ -139,8 +134,42 @@ final class NotchWindow: NSPanel {
 
     // MARK: - Layout helpers
 
+    private func placement(width: CGFloat, height: CGFloat) -> NSRect {
+        let screen = anchorScreen()
+        let gap: CGFloat = 4
+
+        if let anchor = anchorRect, anchor.width > 0, anchor.height > 0 {
+            // Drop below the clock; trailing-align so the panel hangs under the right edge.
+            var x = anchor.maxX - width
+            var y = anchor.minY - gap - height
+
+            let margin: CGFloat = 8
+            let minX = screen.visibleFrame.minX + margin
+            let maxX = screen.visibleFrame.maxX - width - margin
+            x = min(max(x, minX), max(minX, maxX))
+
+            let minY = screen.visibleFrame.minY + margin
+            if y < minY { y = minY }
+
+            return NSRect(x: x, y: y, width: width, height: height)
+        }
+
+        // Fallback: centered under the notch / menu-bar strip.
+        let topY = notchBottomY(on: screen)
+        return NSRect(
+            x: screen.frame.midX - width / 2,
+            y: topY - height,
+            width: width,
+            height: height
+        )
+    }
+
     private func anchorScreen() -> NSScreen {
-        NSScreen.main ?? NSScreen.screens.first!
+        if let anchor = anchorRect,
+           let screen = NSScreen.screens.first(where: { $0.frame.intersects(anchor) }) {
+            return screen
+        }
+        return NSScreen.main ?? NSScreen.screens.first!
     }
 
     /// Y coordinate of the bottom edge of the notch / menu-bar strip (AppKit coords).
@@ -157,7 +186,6 @@ final class NotchWindow: NSPanel {
         }
 
         let strip = max(menuBarHeight, notchInset, 32)
-        // Sit a few points below the strip so the panel clears the notch.
         return frame.maxY - strip - 6
     }
 

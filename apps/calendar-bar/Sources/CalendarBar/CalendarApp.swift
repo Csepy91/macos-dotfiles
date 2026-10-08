@@ -33,6 +33,8 @@ struct CLIFlags {
     var show = false
     var hide = false
     var reload = false
+    /// Optional AppKit screen rect `x,y,w,h` (e.g. from Bar clock).
+    var anchor: CGRect?
 
     var wantsRemoteAction: Bool {
         toggle || show || hide || reload
@@ -41,35 +43,58 @@ struct CLIFlags {
     var ipcCommand: IPCCommand {
         if hide { return .hide }
         if reload { return .reload }
-        if show { return .show }
-        return .toggle
+        if show { return .show(anchor: anchor) }
+        return .toggle(anchor: anchor)
     }
 
     static func parse(_ args: [String]) -> CLIFlags {
         var flags = CLIFlags()
-        for arg in args {
+        var i = 0
+        while i < args.count {
+            let arg = args[i]
             switch arg {
             case "--toggle", "-t": flags.toggle = true
             case "--show": flags.show = true
             case "--hide": flags.hide = true
             case "--reload", "-r": flags.reload = true
+            case "--anchor":
+                if i + 1 < args.count {
+                    flags.anchor = parseAnchor(args[i + 1])
+                    i += 1
+                }
             case "--help", "-h":
                 printHelp()
                 exit(0)
             default:
-                break
+                if arg.hasPrefix("--anchor=") {
+                    flags.anchor = parseAnchor(String(arg.dropFirst("--anchor=".count)))
+                }
             }
+            i += 1
         }
         return flags
     }
 
+    private static func parseAnchor(_ raw: String) -> CGRect? {
+        let bits = raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard bits.count == 4,
+              let x = Double(bits[0]),
+              let y = Double(bits[1]),
+              let w = Double(bits[2]),
+              let h = Double(bits[3])
+        else { return nil }
+        return CGRect(x: x, y: y, width: w, height: h)
+    }
+
     static func printHelp() {
         let help = """
-        CalendarBar — notch calendar & agenda popover
+        CalendarBar — calendar & agenda popover
 
         Usage:
           calendar-bar                 Start the background agent
-          calendar-bar --toggle        Toggle the panel (sketchybar / skhd)
+          calendar-bar --toggle        Toggle the panel (skhd / Bar clock)
+          calendar-bar --toggle --anchor x,y,w,h
+                                       Toggle anchored under a screen rect
           calendar-bar --show          Show the panel
           calendar-bar --hide          Hide the panel
           calendar-bar --reload        Reload ~/.config/calendar/config.json
@@ -140,10 +165,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func handle(_ command: IPCCommand) {
         switch command {
-        case .toggle:
-            toggle()
-        case .show:
-            show()
+        case .toggle(let anchor):
+            toggle(anchor: anchor)
+        case .show(let anchor):
+            show(anchor: anchor)
         case .hide:
             hide()
         case .reload:
@@ -153,16 +178,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func toggle() {
+    private func toggle(anchor: CGRect?) {
         if isShowing {
             hide()
         } else {
-            show()
+            show(anchor: anchor)
         }
     }
 
-    private func show() {
+    private func show(anchor: CGRect?) {
         ensureWindow()
+        if let anchor {
+            window?.anchorRect = NSRect(x: anchor.origin.x, y: anchor.origin.y, width: anchor.width, height: anchor.height)
+        }
         viewModel.prepareForShow(showEvents: configManager.config.behavior.showEvents)
         rebuildRootView()
         isShowing = true

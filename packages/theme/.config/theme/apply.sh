@@ -138,19 +138,76 @@ EOF
   fi
 }
 
+# Invoke a rice app's --reload via PATH, else ~/Applications (or /Applications).
+theme_reload_app() {
+  local cmd="$1"
+  local app_name="$2"
+  if (( $+commands[$cmd] )); then
+    "$cmd" --reload 2>/dev/null && return 0
+  fi
+  local bin
+  for bin in \
+    "${HOME}/Applications/${app_name}.app/Contents/MacOS/${app_name}" \
+    "/Applications/${app_name}.app/Contents/MacOS/${app_name}"
+  do
+    if [[ -x "${bin}" ]]; then
+      "${bin}" --reload 2>/dev/null || true
+      return 0
+    fi
+  done
+  return 1
+}
+
+theme_reload_omniwm() {
+  local label="com.dotfiles.omniwm"
+  local domain="gui/$(id -u)/${label}"
+  if launchctl print "${domain}" &>/dev/null; then
+    launchctl kickstart -k "${domain}" 2>/dev/null && return 0
+  fi
+  if [[ -d "/Applications/OmniWM.app" ]]; then
+    open -a OmniWM 2>/dev/null || true
+    return 0
+  fi
+  return 1
+}
+
+# Materialize ~/.config/omniwm/settings.toml if it is still a stow symlink, then
+# rewrite OmniWM color tables from the active palette (BLUE_BRIGHT / AMBER / …).
+theme_patch_omniwm_colors() {
+  local dest="${HOME}/.config/omniwm/settings.toml"
+  mkdir -p "${dest:h}"
+
+  if [[ -L "${dest}" ]]; then
+    local tmp
+    tmp="$(mktemp)"
+    cp -f "${dest}" "${tmp}"
+    rm -f "${dest}"
+    mv "${tmp}" "${dest}"
+    theme_info "materialized ${dest} (was stow symlink; colors now theme-owned)"
+  fi
+
+  if [[ ! -f "${dest}" ]]; then
+    local pkg="${THEME_DIR:A:h:h}/omniwm/.config/omniwm/settings.toml"
+    if [[ -f "${pkg}" ]]; then
+      cp -f "${pkg}" "${dest}"
+      theme_info "seeded ${dest} from package defaults"
+    else
+      theme_info "skip OmniWM colors — no settings.toml at ${dest}"
+      return 0
+    fi
+  fi
+
+  local patcher="${THEME_DIR}/patch_omniwm_colors.py"
+  [[ -f "${patcher}" ]] || theme_die "missing ${patcher}"
+  # Env already holds BASE / BLUE_BRIGHT / AMBER / THEME_BORDER from the palette.
+  /usr/bin/env python3 "${patcher}" "${dest}"
+}
+
 theme_reload() {
-  if (( $+commands[sketchybar] )); then
-    sketchybar --reload 2>/dev/null || true
-  fi
-  if (( $+commands[brew] )) && brew services list 2>/dev/null | grep -q '^borders '; then
-    brew services restart borders 2>/dev/null || true
-  fi
-  if (( $+commands[launcher] )); then
-    launcher --reload 2>/dev/null || true
-  fi
-  if (( $+commands[calendar-bar] )); then
-    calendar-bar --reload 2>/dev/null || true
-  fi
+  theme_reload_omniwm || true
+  theme_reload_app launcher Launcher || true
+  theme_reload_app calendar-bar CalendarBar || true
+  theme_reload_app bar Bar || true
   if (( $+commands[bat] )); then
     bat cache --build 2>/dev/null || true
   fi
@@ -183,6 +240,7 @@ theme_apply() {
     [git-colors.gitconfig]="${HOME}/.config/git/theme.gitconfig"
     [launcher.config.json]="${HOME}/.config/launcher/config.json"
     [calendar.config.json]="${HOME}/.config/calendar/config.json"
+    [bar.config.json]="${HOME}/.config/bar/config.json"
   )
 
   local tmpl dest rendered
@@ -195,6 +253,10 @@ theme_apply() {
 
   theme_emit_colors_env
   theme_info "wrote ${HOME}/.config/theme/colors.env"
+
+  # OmniWM settings.toml color tables (borders / overview / workspaceBar).
+  theme_patch_omniwm_colors
+
   theme_info "active → ${name}"
 
   theme_set_wallpaper "${name}"

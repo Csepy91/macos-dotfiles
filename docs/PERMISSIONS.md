@@ -1,7 +1,7 @@
 # Permissions & post-install checklist
 
-OmniWM, skhd, sketchybar, and jankyborders need macOS privacy grants that
-**cannot** be automated. Do these once after `./install.sh`.
+OmniWM, skhd, and Bar need macOS privacy grants that **cannot** be automated.
+Do these once after `./install.sh`.
 
 ## Safari / Finder / Dock / Trackpad
 
@@ -20,8 +20,9 @@ Confirm Stow linked configs and Homebrew apps:
 ls -l ~/.zshrc
 ls ~/.config/omniwm/settings.toml
 ls /Applications/OmniWM.app
-brew list --formula sketchybar borders skhd
+brew list --formula skhd
 ls -l /opt/homebrew/bin/skhd
+ls ~/Applications/Bar.app
 ```
 
 Open a **new** terminal tab (so Homebrew is on `PATH`), then check:
@@ -73,9 +74,8 @@ Enable for:
 | --- | --- |
 | OmniWM | **OmniWM** |
 | Launcher | **Launcher** (`~/Applications/Launcher.app`) — menu-bar search; see note below |
+| Bar | **Bar** (`~/Applications/Bar.app`) — workspace strip |
 | skhd | often **missing until you add it** — see below |
-| sketchybar | often add via **+** → Go to Folder |
-| borders | often add via **+** → Go to Folder |
 
 ### skhd does not show up automatically
 
@@ -106,16 +106,14 @@ manually (or until it has run once requesting access).
 8. Also add and enable:
 
 ```text
-/opt/homebrew/bin/sketchybar
-/opt/homebrew/bin/borders
+~/Applications/Bar.app
 ```
 
 9. Restart:
 
 ```sh
 /opt/homebrew/bin/skhd --restart-service
-brew services restart sketchybar
-brew services restart borders
+launchctl kickstart -k "gui/$(id -u)/com.dotfiles.bar"
 launchctl kickstart -k "gui/$(id -u)/com.dotfiles.omniwm"
 ```
 
@@ -140,46 +138,17 @@ or skhd may not receive key events in that terminal.
 
 1. Grant permissions above as prompts appear
 2. Start **OmniWM** (`open -a OmniWM`)
-3. Confirm **sketchybar** is visible at the top
-4. Confirm **borders** draws on the focused window
+3. Confirm **Bar** is visible at the top (`./scripts/install-bar.sh` if missing)
+4. Confirm **OmniWM borders** draw on the focused window
 5. Test skhd: `Option+Return` → Ghostty, `Option+B` → Safari
 
-## macOS menu bar (required for sketchybar)
+## OmniWM borders vs Bar
 
-If the system menu bar auto-hides, a click at the top edge summons it and
-**destroys sketchybar’s windows** (process stays running, bar gone until restart).
-Some apps / OmniWM fill also flash the menu bar when the setting is only
-**In Full Screen Only** instead of **Never**.
-
-Check (Never = both of these):
-
-```sh
-defaults read NSGlobalDomain _HIHideMenuBar
-# false
-defaults read NSGlobalDomain AppleMenuBarVisibleInFullscreen
-# true  (true = Never; false = In Full Screen Only when hide is false)
-```
-
-Fix:
-
-```sh
-./scripts/fix-sketchybar-menubar.sh
-# or:
-defaults write NSGlobalDomain _HIHideMenuBar -bool false
-defaults write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true
-defaults write com.apple.controlcenter AutoHideMenuBarOption -int 3
-killall SystemUIServer ControlCenter
-brew services restart sketchybar && sleep 1 && bash ~/.config/sketchybar/sketchybarrc
-```
-
-Also set **System Settings → Desktop & Dock → Automatically hide and show the
-menu bar → Never**.
-
-## OmniWM vs sketchybar / jankyborders
-
-This rice **disables** OmniWM’s built-in borders, workspace bar, and Hidden Bar
-(`~/.config/omniwm/settings.toml`). Do not re-enable workspace bar / borders
-unless you turn off borders / sketchybar.
+This rice uses **OmniWM’s built-in borders** for window chrome and the native
+**Bar** app for workspaces. OmniWM’s workspace bar / Hidden Bar stay off in
+`settings.toml`. `theme apply` enables `[borders]`, rewrites color tokens
+(`borders.color`, overview borders, workspaceBar accent), and kickstarts the
+LaunchAgent.
 
 ## Launcher
 
@@ -231,7 +200,7 @@ Notch-spawned calendar + agenda (`~/Applications/CalendarBar.app`).
 
 | Trigger | Action |
 | --- | --- |
-| Sketchybar clock click | Toggle panel (`calendar-bar --toggle`) |
+| `calendar-bar --toggle` | Toggle panel (wire via skhd) |
 | `calendar-bar --reload` | Re-read `~/.config/calendar/config.json` |
 
 Build / rebuild:

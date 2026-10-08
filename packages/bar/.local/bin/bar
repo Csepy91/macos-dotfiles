@@ -1,0 +1,17 @@
+#!/bin/sh
+# Thin shim: prefer the built app binary, fall back to a PATH-adjacent copy.
+set -eu
+
+CANDIDATES="
+$HOME/Applications/Bar.app/Contents/MacOS/Bar
+/Applications/Bar.app/Contents/MacOS/Bar
+"
+
+for bin in $CANDIDATES; do
+  if [ -x "$bin" ]; then
+    exec "$bin" "$@"
+  fi
+done
+
+echo "bar: Bar.app not found. Run: ./scripts/install-bar.sh" >&2
+exit 127

@@ -7,8 +7,8 @@ Apple Silicon macOS rice built on **Homebrew** (all packages) and **GNU Stow** (
 | Layer | Tool |
 | --- | --- |
 | WM | OmniWM (borders/bar disabled) |
-| Bar | sketchybar |
-| Borders | jankyborders (`borders`) |
+| Bar | sketchybar (historical; replaced by Bar.app) |
+| Borders | jankyborders (historical; replaced by OmniWM borders) |
 | App hotkeys | skhd |
 | Terminal | Ghostty |
 | Shell | zsh + starship + plugins |
@@ -38,12 +38,7 @@ The installer will:
 2. Let you toggle CLI tools, rice components, and GUI apps (`gum`)
 3. Write `hosts/<hostname>/features.conf` and a root `Brewfile`
 4. `brew bundle` + `stow` selected packages into `$HOME`
-5. Start sketchybar / borders / skhd / OmniWM services
-
-Homebrew 6+ requires tap trust for third-party formulae. The installer marks
-`FelixKratz/formulae/sketchybar` (and borders / skhd) as `trusted: true` in the
-Brewfile and runs `brew trust` before bundling. The sketchybar app font comes
-from official `homebrew/cask` (`font-sketchybar-app-font`).
+5. Start borders / skhd / OmniWM services
 
 Then follow [docs/PERMISSIONS.md](docs/PERMISSIONS.md).
 
@@ -64,8 +59,6 @@ packages/          # Stow packages (mirror $HOME layout)
   ghostty/         # ~/.config/ghostty/
   omniwm/          # ~/.config/omniwm/ + LaunchAgent
   skhd/            # ~/.config/skhd/
-  borders/         # ~/.config/borders/
-  sketchybar/      # ~/.config/sketchybar/
   starship/ bat/ btop/ gh/ yazi/
 hosts/<name>/features.conf
 lib/features.sh    # feature flag helpers
