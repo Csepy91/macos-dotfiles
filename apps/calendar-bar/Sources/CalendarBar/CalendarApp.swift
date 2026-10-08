@@ -116,6 +116,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var initialCommand: IPCCommand?
     private var isShowing = false
+    /// Last applied `behavior.showEvents` — avoids EventKit thrash on unrelated config edits.
+    private var lastShowEvents: Bool?
     /// Ignores resign-key while the panel is animating open / claiming focus.
     private var suppressHideOnBlur = false
     private var blurSuppressWorkItem: DispatchWorkItem?
@@ -143,12 +145,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        lastShowEvents = configManager.config.behavior.showEvents
         configManager.$config
             .receive(on: RunLoop.main)
             .sink { [weak self] config in
                 guard let self else { return }
-                // Chrome only — CalendarView already observes configManager / viewModel.
+                // Chrome — CalendarView already observes configManager / viewModel.
                 self.window?.apply(config: config)
+                let showEvents = config.behavior.showEvents
+                // Hot-reload of show_events while the panel is open needs an EventKit refresh.
+                if self.isShowing, self.lastShowEvents != showEvents {
+                    self.viewModel.applyShowEvents(showEvents)
+                }
+                self.lastShowEvents = showEvents
             }
             .store(in: &cancellables)
 
@@ -160,6 +169,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         blurSuppressWorkItem?.cancel()
         removeKeyMonitor()
+        IPCServer.shared.stop()
+        configManager.stop()
     }
 
     private func handle(_ command: IPCCommand) {

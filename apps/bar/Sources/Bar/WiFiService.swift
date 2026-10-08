@@ -4,6 +4,9 @@ import Security
 
 /// Low-level Wi-Fi helpers (CoreWLAN + networksetup + Keychain).
 enum WiFiService {
+    /// CoreWLAN is not thread-safe — serialize all shared-client access.
+    private static let coreWLANLock = NSLock()
+
     struct Network: Identifiable, Equatable {
         var id: String { ssid }
         let ssid: String
@@ -20,6 +23,12 @@ enum WiFiService {
     }
 
     static func hardwareInterfaceName() -> String {
+        coreWLANLock.lock()
+        defer { coreWLANLock.unlock() }
+        return hardwareInterfaceNameUnlocked()
+    }
+
+    private static func hardwareInterfaceNameUnlocked() -> String {
         if let name = CWWiFiClient.shared().interface()?.interfaceName, !name.isEmpty {
             return name
         }
@@ -27,7 +36,10 @@ enum WiFiService {
     }
 
     static func status() -> Status {
-        let ifaceName = hardwareInterfaceName()
+        coreWLANLock.lock()
+        defer { coreWLANLock.unlock() }
+
+        let ifaceName = hardwareInterfaceNameUnlocked()
         guard let iface = CWWiFiClient.shared().interface() else {
             return Status(powerOn: false, connected: false, ssid: nil, rssi: nil, interfaceName: ifaceName)
         }
@@ -58,6 +70,9 @@ enum WiFiService {
 
     /// Scan nearby networks (requires Location on recent macOS). Sorted by RSSI.
     static func scan(limit: Int = 14) -> Result<[Network], Error> {
+        coreWLANLock.lock()
+        defer { coreWLANLock.unlock() }
+
         guard let iface = CWWiFiClient.shared().interface(), iface.powerOn() else {
             return .success([])
         }

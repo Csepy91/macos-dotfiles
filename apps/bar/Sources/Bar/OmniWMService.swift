@@ -106,6 +106,11 @@ final class OmniWMService {
     }
 
     func start() {
+        // Cancel any leftover restart/refresh from a prior stop/start race.
+        restartWorkItem?.cancel()
+        restartWorkItem = nil
+        refreshDebounce?.cancel()
+        refreshDebounce = nil
         isStopping = false
         installNotificationObserver()
         startSubscription()
@@ -124,13 +129,14 @@ final class OmniWMService {
 
     /// Re-query OmniWM and push results through `onWorkspacesChanged`.
     func refreshFromCLI() {
+        guard !isStopping else { return }
         refreshGeneration &+= 1
         let generation = refreshGeneration
         let path = ctlPath
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let workspaces = Self.queryWorkspacesSync(ctlPath: path)
             DispatchQueue.main.async {
-                guard let self, generation == self.refreshGeneration else { return }
+                guard let self, !self.isStopping, generation == self.refreshGeneration else { return }
                 self.onWorkspacesChanged?(workspaces)
             }
         }

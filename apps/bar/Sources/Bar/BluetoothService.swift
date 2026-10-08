@@ -3,6 +3,9 @@ import IOBluetooth
 
 /// Low-level Bluetooth helpers via IOBluetooth (+ power preference SPI).
 enum BluetoothService {
+    /// Serialize IOBluetooth / power SPI across the bar poll and menu actions.
+    private static let lock = NSLock()
+
     struct Device: Identifiable, Equatable {
         var id: String { address }
         let address: String
@@ -23,19 +26,29 @@ enum BluetoothService {
     private static func setPowerState(_ state: Int32)
 
     static func status() -> Status {
+        lock.lock()
+        defer { lock.unlock() }
         let powerOn = getPowerState() != 0
         guard powerOn else {
             return Status(powerOn: false, connected: [])
         }
-        let connected = pairedDevices().filter(\.isConnected)
+        let connected = pairedDevicesUnlocked().filter(\.isConnected)
         return Status(powerOn: true, connected: connected)
     }
 
     static func setPower(_ on: Bool) {
+        lock.lock()
+        defer { lock.unlock() }
         setPowerState(on ? 1 : 0)
     }
 
     static func pairedDevices() -> [Device] {
+        lock.lock()
+        defer { lock.unlock() }
+        return pairedDevicesUnlocked()
+    }
+
+    private static func pairedDevicesUnlocked() -> [Device] {
         guard let raw = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else {
             return []
         }
@@ -53,6 +66,8 @@ enum BluetoothService {
 
     @discardableResult
     static func connect(address: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
         guard let device = IOBluetoothDevice(addressString: address) else { return false }
         if device.isConnected() { return true }
         return device.openConnection() == kIOReturnSuccess
@@ -60,6 +75,8 @@ enum BluetoothService {
 
     @discardableResult
     static func disconnect(address: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
         guard let device = IOBluetoothDevice(addressString: address) else { return false }
         guard device.isConnected() else { return true }
         return device.closeConnection() == kIOReturnSuccess

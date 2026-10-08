@@ -61,6 +61,12 @@ final class IPCServer {
         return true
     }
 
+    /// Tear down the listener (cancels the DispatchSource, closes the FD, unlinks the sock).
+    func stop() {
+        onCommand = nil
+        listener = nil
+    }
+
     /// Attempt to send a command to a running instance. Returns `true` if delivered.
     @discardableResult
     static func send(_ command: IPCCommand) -> Bool {
