@@ -11,6 +11,9 @@ final class ConfigManager: ObservableObject {
     private var source: DispatchSourceFileSystemObject?
     private var reloadWorkItem: DispatchWorkItem?
     private var restartWorkItem: DispatchWorkItem?
+    private var openRetryWorkItem: DispatchWorkItem?
+    private var openRetryDelay: TimeInterval = 2
+    private let maxOpenRetryDelay: TimeInterval = 60
 
     var configURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -66,12 +69,11 @@ final class ConfigManager: ObservableObject {
         let path = configURL.path
         let fd = open(path, O_EVTONLY)
         guard fd >= 0 else {
-            // File may appear later — retry shortly.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-                self?.startWatching()
-            }
+            scheduleOpenRetry()
             return
         }
+
+        openRetryDelay = 2
 
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd,
@@ -97,6 +99,17 @@ final class ConfigManager: ObservableObject {
         source.resume()
     }
 
+    private func scheduleOpenRetry() {
+        openRetryWorkItem?.cancel()
+        let delay = openRetryDelay
+        openRetryDelay = min(openRetryDelay * 2, maxOpenRetryDelay)
+        let item = DispatchWorkItem { [weak self] in
+            self?.startWatching()
+        }
+        openRetryWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+    }
+
     private func scheduleReload() {
         reloadWorkItem?.cancel()
         let item = DispatchWorkItem { [weak self] in
@@ -116,8 +129,12 @@ final class ConfigManager: ObservableObject {
     }
 
     private func stopWatching() {
+        openRetryWorkItem?.cancel()
+        openRetryWorkItem = nil
         restartWorkItem?.cancel()
         restartWorkItem = nil
+        reloadWorkItem?.cancel()
+        reloadWorkItem = nil
         source?.cancel()
         source = nil
     }

@@ -131,15 +131,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] config in
                 guard let self else { return }
                 self.viewModel.updateConfig(config)
+                // Chrome only — WorkspaceBarView already observes configManager / viewModel.
                 self.window?.apply(config: config)
-                self.rebuildRootView()
-            }
-            .store(in: &cancellables)
-
-        viewModel.$workspaces
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.rebuildRootView()
             }
             .store(in: &cancellables)
 
@@ -204,11 +197,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             battery: battery,
             configManager: configManager
         )
-    }
-
-    private func rebuildRootView() {
-        guard let window else { return }
-        window.setRootView(makeRootView())
-        window.apply(config: configManager.config)
     }
 }

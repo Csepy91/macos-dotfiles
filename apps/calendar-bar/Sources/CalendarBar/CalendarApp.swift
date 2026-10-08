@@ -118,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isShowing = false
     /// Ignores resign-key while the panel is animating open / claiming focus.
     private var suppressHideOnBlur = false
+    private var blurSuppressWorkItem: DispatchWorkItem?
 
     init(initialCommand: IPCCommand?) {
         self.initialCommand = initialCommand
@@ -138,19 +139,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] config in
                 guard let self else { return }
+                // Chrome only — CalendarView already observes configManager / viewModel.
                 self.window?.apply(config: config)
-                if self.isShowing {
-                    self.rebuildRootView()
-                }
-            }
-            .store(in: &cancellables)
-
-        viewModel.$events
-            .combineLatest(viewModel.$authState, viewModel.$days)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _, _, _ in
-                guard let self, self.isShowing else { return }
-                self.rebuildRootView()
             }
             .store(in: &cancellables)
 
@@ -160,6 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        blurSuppressWorkItem?.cancel()
         removeKeyMonitor()
     }
 
@@ -192,14 +183,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window?.anchorRect = NSRect(x: anchor.origin.x, y: anchor.origin.y, width: anchor.width, height: anchor.height)
         }
         viewModel.prepareForShow(showEvents: configManager.config.behavior.showEvents)
-        rebuildRootView()
+        // Ensure hosting view has latest bindings once; further updates are ObservedObject-driven.
+        window?.setRootView(makeRootView())
+        window?.apply(config: configManager.config)
         isShowing = true
         viewModel.isVisible = true
         suppressHideOnBlur = true
+        blurSuppressWorkItem?.cancel()
         window?.showAnimated { [weak self] in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            guard let self else { return }
+            let item = DispatchWorkItem { [weak self] in
                 self?.suppressHideOnBlur = false
             }
+            self.blurSuppressWorkItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: item)
         }
         installKeyMonitor()
     }
@@ -208,6 +205,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard isShowing else { return }
         isShowing = false
         viewModel.isVisible = false
+        blurSuppressWorkItem?.cancel()
+        blurSuppressWorkItem = nil
         suppressHideOnBlur = false
         removeKeyMonitor()
         window?.hideAnimated()
@@ -243,12 +242,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.hide()
             }
         )
-    }
-
-    private func rebuildRootView() {
-        guard let window else { return }
-        window.setRootView(makeRootView())
-        window.apply(config: configManager.config)
     }
 
     private func installKeyMonitor() {

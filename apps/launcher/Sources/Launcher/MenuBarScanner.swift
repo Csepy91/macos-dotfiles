@@ -67,17 +67,19 @@ enum MenuBarScanner {
         return commands
     }
 
-    static func perform(_ command: MenuCommand) {
+    @discardableResult
+    static func perform(_ command: MenuCommand) -> Bool {
         // Refuse stale elements whose owning process is gone.
         guard let pid = pid(of: command.element),
               let running = NSRunningApplication(processIdentifier: pid),
               !running.isTerminated
         else {
             NSLog("[Launcher] Menu command target app is gone — skipping press")
-            return
+            return false
         }
         running.activate(options: [.activateIgnoringOtherApps])
-        AXUIElementPerformAction(command.element, kAXPressAction as CFString)
+        let status = AXUIElementPerformAction(command.element, kAXPressAction as CFString)
+        return status == .success
     }
 
     // MARK: - Private

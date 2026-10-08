@@ -137,6 +137,11 @@ private final class UnixSocketListener {
         guard client >= 0 else { return }
         defer { close(client) }
 
+        // Bound wait so a silent peer cannot stall the IPC queue.
+        var polls = [pollfd(fd: client, events: Int16(POLLIN), revents: 0)]
+        let ready = poll(&polls, 1, 200)
+        guard ready > 0, (polls[0].revents & Int16(POLLIN)) != 0 else { return }
+
         var buffer = [UInt8](repeating: 0, count: 256)
         let n = read(client, &buffer, buffer.count)
         guard n > 0 else { return }

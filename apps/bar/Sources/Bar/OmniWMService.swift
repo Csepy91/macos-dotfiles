@@ -85,6 +85,9 @@ final class OmniWMService {
     private var restartWorkItem: DispatchWorkItem?
     private var refreshDebounce: DispatchWorkItem?
     private var isStopping = false
+    /// Exponential backoff for subscribe restarts (caps thrash when omniwmctl is missing).
+    private var restartDelay: TimeInterval = 1.0
+    private let maxRestartDelay: TimeInterval = 60.0
 
     /// Fired when OmniWM state should be re-queried / applied.
     var onWorkspacesChanged: (([WorkspaceInfo]?) -> Void)?
@@ -223,6 +226,8 @@ final class OmniWMService {
             return
         }
 
+        // Successful spawn — reset backoff so a later clean exit recovers quickly.
+        restartDelay = 1.0
         subscribeProcess = process
         stdoutPipe = stdout
         stderrPipe = stderr
@@ -253,11 +258,14 @@ final class OmniWMService {
 
     private func scheduleSubscriptionRestart() {
         restartWorkItem?.cancel()
+        let delay = restartDelay
+        restartDelay = min(restartDelay * 2, maxRestartDelay)
+        NSLog("[Bar] omniwmctl subscribe restart in %.0fs", delay)
         let item = DispatchWorkItem { [weak self] in
             self?.startSubscription()
         }
         restartWorkItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: item)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
     }
 
     private func tearDownSubscription() {
