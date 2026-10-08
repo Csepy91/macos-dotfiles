@@ -5,6 +5,8 @@ struct WorkspaceBarView: View {
     @ObservedObject var viewModel: WorkspaceViewModel
     @ObservedObject var clock: ClockViewModel
     @ObservedObject var battery: BatteryViewModel
+    @ObservedObject var wifi: WiFiViewModel
+    @ObservedObject var bluetooth: BluetoothViewModel
     @ObservedObject var configManager: ConfigManager
 
     private var theme: ThemeConfig { configManager.config.theme }
@@ -30,6 +32,8 @@ struct WorkspaceBarView: View {
             Spacer(minLength: 0)
 
             HStack(spacing: 2) {
+                BluetoothButton(bluetooth: bluetooth, theme: theme)
+                WiFiButton(wifi: wifi, theme: theme)
                 if battery.isPresent {
                     BatteryButton(battery: battery, theme: theme)
                 }
@@ -129,6 +133,106 @@ struct WorkspaceBarView: View {
             return .custom(theme.fontFamily, size: size).weight(weight)
         }
         return .system(size: size, weight: weight, design: .rounded)
+    }
+}
+
+// MARK: - Bluetooth
+
+private final class BluetoothButtonFrameStore {
+    var screenFrame: NSRect = .zero
+}
+
+private struct BluetoothButton: View {
+    @ObservedObject var bluetooth: BluetoothViewModel
+    let theme: ThemeConfig
+    private let frameStore = BluetoothButtonFrameStore()
+
+    var body: some View {
+        Button {
+            BluetoothMenuController.shared.toggle(
+                relativeTo: frameStore.screenFrame,
+                theme: theme
+            )
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: bluetooth.symbolName)
+                    .font(.system(size: max(theme.fontSize - 1, 11), weight: .medium))
+                Text(bluetooth.statusLabel)
+                    .font(labelFont)
+                    .lineLimit(1)
+            }
+            .foregroundColor(
+                bluetooth.powerOn && !bluetooth.connectedDevices.isEmpty
+                    ? Color(hex: theme.accentColor)
+                    : Color(hex: theme.textColor)
+            )
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(BarIconButtonStyle(theme: theme))
+        .help(bluetooth.helpText)
+        .background(
+            ScreenFrameReader { frame in
+                frameStore.screenFrame = frame
+            }
+        )
+    }
+
+    private var labelFont: Font {
+        let size = theme.fontSize
+        if NSFont(name: theme.fontFamily, size: size) != nil {
+            return .custom(theme.fontFamily, size: size).weight(.medium)
+        }
+        return .system(size: size, weight: .medium, design: .rounded)
+    }
+}
+
+// MARK: - Wi-Fi
+
+private final class WiFiButtonFrameStore {
+    var screenFrame: NSRect = .zero
+}
+
+private struct WiFiButton: View {
+    @ObservedObject var wifi: WiFiViewModel
+    let theme: ThemeConfig
+    private let frameStore = WiFiButtonFrameStore()
+
+    var body: some View {
+        Button {
+            WiFiMenuController.shared.toggle(
+                relativeTo: frameStore.screenFrame,
+                theme: theme
+            )
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: wifi.symbolName)
+                    .font(.system(size: max(theme.fontSize - 1, 11), weight: .medium))
+                Text(wifi.speedLabel)
+                    .font(labelFont)
+                    .monospacedDigit()
+            }
+            .foregroundColor(Color(hex: theme.textColor))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(BarIconButtonStyle(theme: theme))
+        .help(wifi.ssid.map { "Wi-Fi: \($0)" } ?? "Wi-Fi")
+        .background(
+            ScreenFrameReader { frame in
+                frameStore.screenFrame = frame
+            }
+        )
+    }
+
+    private var labelFont: Font {
+        let size = theme.fontSize
+        if NSFont(name: theme.fontFamily, size: size) != nil {
+            return .custom(theme.fontFamily, size: size).weight(.medium)
+        }
+        return .system(size: size, weight: .medium, design: .rounded)
     }
 }
 

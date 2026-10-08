@@ -26,5 +26,7 @@
 	<true/>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Bar needs Location to scan nearby Wi-Fi networks and show the current SSID.</string>
 </dict>
 </plist>

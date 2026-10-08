@@ -105,6 +105,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let viewModel = WorkspaceViewModel()
     private let clock = ClockViewModel()
     private let battery = BatteryViewModel()
+    private let wifi = WiFiViewModel()
+    private let bluetooth = BluetoothViewModel()
     private let configManager = ConfigManager.shared
     private var window: TopBarWindow?
     private var cancellables = Set<AnyCancellable>()
@@ -140,6 +142,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         viewModel.start()
         clock.start()
         battery.start()
+        wifi.start()
+        bluetooth.start()
 
         ensureWindow()
         window?.showBar()
@@ -163,6 +167,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         viewModel.stop()
         clock.stop()
         battery.stop()
+        wifi.stop()
+        bluetooth.stop()
         if let screenObserver {
             NotificationCenter.default.removeObserver(screenObserver)
         }
@@ -195,6 +201,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             viewModel: viewModel,
             clock: clock,
             battery: battery,
+            wifi: wifi,
+            bluetooth: bluetooth,
             configManager: configManager
         )
     }
