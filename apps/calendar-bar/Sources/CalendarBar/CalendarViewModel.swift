@@ -200,13 +200,18 @@ final class CalendarViewModel: ObservableObject {
         let ekEvents = store.events(matching: predicate)
 
         var keys = Set<String>()
+        // Cap day walks so a pathological multi-year event cannot hitch the main actor.
+        let maxSpanDays = 62
         for event in ekEvents {
             var cursor = calendar.startOfDay(for: event.startDate)
             let last = calendar.startOfDay(for: event.endDate)
-            while cursor <= last {
+            guard cursor <= last else { continue }
+            var steps = 0
+            while cursor <= last, steps < maxSpanDays {
                 keys.insert(dayKeyFormatter.string(from: cursor))
                 guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
                 cursor = next
+                steps += 1
             }
         }
         monthEventDays = keys

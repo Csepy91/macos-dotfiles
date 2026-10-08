@@ -103,6 +103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isShowing = false
     /// Ignores resign-key while the panel is animating open / claiming focus.
     private var suppressHideOnBlur = false
+    private var blurSuppressWorkItem: DispatchWorkItem?
+    private var appRefreshWorkItem: DispatchWorkItem?
 
     init(initialCommand: IPCCommand?, registerHotkey: Bool) {
         self.initialCommand = initialCommand
@@ -149,6 +151,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        blurSuppressWorkItem?.cancel()
+        appRefreshWorkItem?.cancel()
         removeKeyMonitor()
         removeWorkspaceObservers()
     }
@@ -163,7 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.viewModel.refreshApps()
+                self?.scheduleAppRefresh()
             }
         }
 
@@ -175,11 +179,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             Task { @MainActor in
                 self?.viewModel.handleAppTerminated(app)
-                self?.viewModel.refreshApps()
+                self?.scheduleAppRefresh()
             }
         }
 
         workspaceObservers = [launchObs, terminateObs]
+    }
+
+    private func scheduleAppRefresh() {
+        appRefreshWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.viewModel.refreshApps()
+        }
+        appRefreshWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75, execute: item)
     }
 
     private func removeWorkspaceObservers() {
@@ -227,14 +240,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         isShowing = true
         viewModel.isVisible = true
         suppressHideOnBlur = true
+        blurSuppressWorkItem?.cancel()
         window?.showAnimated { [weak self] in
             guard let self else { return }
             self.focusToken = UUID()
             self.rebuildRootView()
-            // Allow blur-hide only after focus has settled.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            let item = DispatchWorkItem { [weak self] in
                 self?.suppressHideOnBlur = false
             }
+            self.blurSuppressWorkItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: item)
         }
         installKeyMonitor()
     }
@@ -243,6 +258,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard isShowing else { return }
         isShowing = false
         viewModel.isVisible = false
+        blurSuppressWorkItem?.cancel()
+        blurSuppressWorkItem = nil
         suppressHideOnBlur = false
         removeKeyMonitor()
         window?.hideAnimated()

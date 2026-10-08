@@ -6,6 +6,8 @@ final class NotchWindow: NSPanel {
     private var config: LauncherConfig
     private var blurView: NSVisualEffectView?
     private(set) var hostingView: NSHostingView<MainView>?
+    /// Bumps on each show/hide so overlapping animation completions are ignored.
+    private var animationGeneration: UInt64 = 0
 
     init(config: LauncherConfig, rootView: MainView) {
         self.config = config
@@ -82,6 +84,8 @@ final class NotchWindow: NSPanel {
     }
 
     func showAnimated(focusSearch: @escaping () -> Void) {
+        animationGeneration &+= 1
+        let generation = animationGeneration
         reposition(animated: false)
         alphaValue = 0
         let target = frame
@@ -95,12 +99,15 @@ final class NotchWindow: NSPanel {
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             animator().alphaValue = 1
             animator().setFrame(target, display: true)
-        }, completionHandler: {
+        }, completionHandler: { [weak self] in
+            guard let self, self.animationGeneration == generation else { return }
             focusSearch()
         })
     }
 
     func hideAnimated(completion: (() -> Void)? = nil) {
+        animationGeneration &+= 1
+        let generation = animationGeneration
         let target = frame.offsetBy(dx: 0, dy: 10)
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.14
@@ -108,7 +115,8 @@ final class NotchWindow: NSPanel {
             animator().alphaValue = 0
             animator().setFrame(target, display: true)
         }, completionHandler: { [weak self] in
-            self?.orderOut(nil)
+            guard let self, self.animationGeneration == generation else { return }
+            self.orderOut(nil)
             completion?()
         })
     }

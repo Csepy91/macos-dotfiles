@@ -198,8 +198,7 @@ final class LauncherViewModel: ObservableObject {
                 menuCommands = []
                 return false
             }
-            MenuBarScanner.perform(command)
-            return true
+            return MenuBarScanner.perform(command)
         }
     }
 
@@ -232,9 +231,7 @@ final class LauncherViewModel: ObservableObject {
             let ranked = FuzzySearch.ranked(query: effectiveQuery, items: apps, key: \.name)
             items = ranked.map { .app($0) }
         case .menu:
-            if menuCommands.isEmpty {
-                refreshMenuCommands()
-            }
+            // Do not re-walk AX on every keystroke — scan only on mode entry / grant.
             let ranked = FuzzySearch.ranked(query: effectiveQuery, items: menuCommands, key: \.path)
             items = ranked.map { .menu($0) }
         }

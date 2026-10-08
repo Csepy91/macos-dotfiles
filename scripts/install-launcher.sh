@@ -90,6 +90,8 @@ cat >"$PLIST_DST" <<EOF
 	<true/>
 	<key>KeepAlive</key>
 	<true/>
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
 	<key>StandardOutPath</key>
 	<string>/tmp/launcher.out.log</string>
 	<key>StandardErrorPath</key>
