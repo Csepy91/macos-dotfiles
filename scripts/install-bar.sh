@@ -61,27 +61,32 @@ if [[ -x /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServ
 fi
 
 mkdir -p "$BIN_DIR"
-# Prefer the stowed shim from packages/bar. Only write a fallback when the
-# target is missing — never replace an existing regular file (that breaks stow).
+# Prefer the stowed shim from packages/bar. Never create absolute symlinks —
+# stow owns ~/.local/bin/bar with a relative link; absolute ones abort restow.
 if [[ -L "$BIN_DIR/bar" ]]; then
-  ok "CLI → $BIN_DIR/bar (stowed)"
+  link_target="$(readlink "$BIN_DIR/bar" 2>/dev/null || true)"
+  if [[ "$link_target" == /* ]]; then
+    warn "Removing absolute CLI shim at $BIN_DIR/bar (not stow-owned)"
+    rm -f "$BIN_DIR/bar"
+  else
+    ok "CLI → $BIN_DIR/bar (stowed)"
+  fi
+fi
+if [[ -L "$BIN_DIR/bar" ]]; then
+  : # already reported above
 elif [[ -e "$BIN_DIR/bar" ]]; then
   warn "CLI shim exists as a regular file at $BIN_DIR/bar"
   warn "Remove it and restow so packages/bar can own the link:"
   warn "  rm -f \"$BIN_DIR/bar\" && ./scripts/restow.sh"
+elif [[ -f "$ROOT/packages/bar/.local/bin/bar" ]]; then
+  warn "No CLI shim yet — stow the bar package (./install.sh or ./scripts/restow.sh)"
 else
-  # Always ensure theme apply / skhd can find `bar` on PATH.
-  if [[ -f "$ROOT/packages/bar/.local/bin/bar" ]]; then
-    ln -sfn "$ROOT/packages/bar/.local/bin/bar" "$BIN_DIR/bar"
-    ok "CLI → $BIN_DIR/bar (linked to packages/bar)"
-  else
-    cat >"$BIN_DIR/bar" <<EOF
+  cat >"$BIN_DIR/bar" <<EOF
 #!/bin/sh
 exec "$EXEC" "\$@"
 EOF
-    chmod +x "$BIN_DIR/bar"
-    ok "CLI → $BIN_DIR/bar (local fallback shim)"
-  fi
+  chmod +x "$BIN_DIR/bar"
+  ok "CLI → $BIN_DIR/bar (local fallback shim)"
 fi
 
 # Seed config when theme apply has not run yet.

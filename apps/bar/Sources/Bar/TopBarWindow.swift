@@ -142,10 +142,6 @@ final class TopBarWindow: NSPanel {
         effect.subviews
             .filter { $0.identifier?.rawValue == "bottom-border" }
             .forEach { $0.removeFromSuperview() }
-
-        if let hostingView {
-            effect.addSubview(hostingView, positioned: .above, relativeTo: nil)
-        }
     }
 }
 

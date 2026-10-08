@@ -3,6 +3,7 @@ import SwiftUI
 
 struct WorkspaceBarView: View {
     @ObservedObject var viewModel: WorkspaceViewModel
+    @ObservedObject var frontApp: FrontAppViewModel
     @ObservedObject var clock: ClockViewModel
     @ObservedObject var battery: BatteryViewModel
     @ObservedObject var wifi: WiFiViewModel
@@ -18,14 +19,22 @@ struct WorkspaceBarView: View {
             HStack(spacing: 2) {
                 // Far left — themed Apple menu (⌥ alternates like the system menu).
                 AppleMenuButton(theme: theme)
-                    .padding(.trailing, 6)
+                    .padding(.trailing, 2)
+
+                MenuButton(theme: theme) {
+                    viewModel.openOmniWMMenu()
+                }
+                .padding(.trailing, 6)
 
                 ForEach(viewModel.workspaces) { workspace in
                     workspaceItem(workspace)
-                        .animation(
-                            .spring(response: 0.28, dampingFraction: 0.78),
-                            value: viewModel.transitionToken
-                        )
+                }
+                .animation(.easeOut(duration: 0.1), value: viewModel.activeRawName)
+
+                if !frontApp.appName.isEmpty {
+                    FrontAppPill(frontApp: frontApp, theme: theme)
+                        .padding(.leading, 6)
+                        .animation(.easeOut(duration: 0.15), value: frontApp.appName)
                 }
             }
 
@@ -33,6 +42,7 @@ struct WorkspaceBarView: View {
 
             HStack(spacing: 2) {
                 BluetoothButton(bluetooth: bluetooth, theme: theme)
+                OmniWMControlsButton(theme: theme)
                 WiFiButton(wifi: wifi, theme: theme)
                 if battery.isPresent {
                     BatteryButton(battery: battery, theme: theme)
@@ -73,11 +83,8 @@ struct WorkspaceBarView: View {
                 .monospacedDigit()
                 .frame(minWidth: 18, minHeight: 18)
                 .padding(.horizontal, 7)
-                .padding(.vertical, 2)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(active ? Color(hex: theme.activeWorkspaceBg) : Color.clear)
-                )
+                .padding(.vertical, 3)
+                .barPillBackground(theme)
                 .overlay(
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .strokeBorder(
@@ -86,7 +93,6 @@ struct WorkspaceBarView: View {
                         )
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .scaleEffect(active ? 1.06 : 1.0)
                 .opacity(active ? 1.0 : (occupied ? 1.0 : 0.72))
         }
         .buttonStyle(.plain)
@@ -136,6 +142,41 @@ struct WorkspaceBarView: View {
     }
 }
 
+// MARK: - Frontmost app
+
+private struct FrontAppPill: View {
+    @ObservedObject var frontApp: FrontAppViewModel
+    let theme: ThemeConfig
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let icon = frontApp.icon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 14, height: 14)
+            }
+            Text(frontApp.appName)
+                .font(labelFont)
+                .foregroundColor(Color(hex: theme.textColor))
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .fixedSize(horizontal: true, vertical: true)
+        .barPillBackground(theme)
+        .help(frontApp.appName)
+    }
+
+    private var labelFont: Font {
+        let size = theme.fontSize
+        if NSFont(name: theme.fontFamily, size: size) != nil {
+            return .custom(theme.fontFamily, size: size).weight(.medium)
+        }
+        return .system(size: size, weight: .medium, design: .rounded)
+    }
+}
+
 // MARK: - Bluetooth
 
 private struct BluetoothButton: View {
@@ -162,8 +203,9 @@ private struct BluetoothButton: View {
                     : Color(hex: theme.textColor)
             )
             .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
+            .padding(.vertical, 3)
+            .barPillBackground(theme)
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(BarIconButtonStyle(theme: theme))
         .help(bluetooth.helpText)
@@ -205,8 +247,9 @@ private struct WiFiButton: View {
             }
             .foregroundColor(Color(hex: theme.textColor))
             .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
+            .padding(.vertical, 3)
+            .barPillBackground(theme)
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(BarIconButtonStyle(theme: theme))
         .help(wifi.ssid.map { "Wi-Fi: \($0)" } ?? "Wi-Fi")
@@ -247,8 +290,9 @@ private struct BatteryButton: View {
             }
             .foregroundColor(foreground)
             .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
+            .padding(.vertical, 3)
+            .barPillBackground(theme)
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(BarIconButtonStyle(theme: theme))
         .help("Battery Settings")
@@ -285,8 +329,9 @@ private struct ClockButton: View {
                 .monospacedDigit()
                 .foregroundColor(Color(hex: theme.textColor))
                 .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .contentShape(Rectangle())
+                .padding(.vertical, 3)
+                .barPillBackground(theme)
+                .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(BarIconButtonStyle(theme: theme))
         .help("Calendar")
@@ -331,6 +376,58 @@ private struct AppleMenuButton: View {
             ScreenFrameReader { frame in
                 ButtonScreenFrames.apple.rect = frame
             }
+        )
+    }
+}
+
+// MARK: - OmniWM menu (anywhere)
+
+private struct MenuButton: View {
+    let theme: ThemeConfig
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: max(theme.fontSize, 12), weight: .medium))
+                .foregroundColor(Color(hex: theme.textColor))
+                .frame(minWidth: 24, minHeight: 24)
+                .padding(.horizontal, 4)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(BarIconButtonStyle(theme: theme))
+        .help("Menu")
+    }
+}
+
+// MARK: - OmniWM Controls (status-item dropdown)
+
+private struct OmniWMControlsButton: View {
+    let theme: ThemeConfig
+
+    var body: some View {
+        Button {
+            OmniWMControlsController.toggle()
+        } label: {
+            Image(systemName: "gearshape")
+                .font(.system(size: max(theme.fontSize - 1, 11), weight: .medium))
+                .foregroundColor(Color(hex: theme.textColor))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .barPillBackground(theme)
+                .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+        .buttonStyle(BarIconButtonStyle(theme: theme))
+        .help("OmniWM Controls")
+    }
+}
+
+private extension View {
+    /// Shared pill chrome used by workspace / front-app / right-side modules.
+    func barPillBackground(_ theme: ThemeConfig) -> some View {
+        background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color(hex: theme.activeWorkspaceBg).opacity(0.85))
         )
     }
 }

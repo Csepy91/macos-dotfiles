@@ -103,6 +103,7 @@ struct CLIFlags {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let viewModel = WorkspaceViewModel()
+    private let frontApp = FrontAppViewModel()
     private let clock = ClockViewModel()
     private let battery = BatteryViewModel()
     private let wifi = WiFiViewModel()
@@ -148,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         viewModel.updateConfig(configManager.config)
         viewModel.start()
+        frontApp.start()
         clock.start()
         battery.start()
         wifi.start()
@@ -173,6 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         viewModel.stop()
+        frontApp.stop()
         clock.stop()
         battery.stop()
         wifi.stop()
@@ -207,6 +210,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makeRootView() -> WorkspaceBarView {
         WorkspaceBarView(
             viewModel: viewModel,
+            frontApp: frontApp,
             clock: clock,
             battery: battery,
             wifi: wifi,

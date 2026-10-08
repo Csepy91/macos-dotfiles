@@ -16,6 +16,7 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI"),
+                .linkedFramework("ApplicationServices"),
                 .linkedFramework("IOKit"),
                 .linkedFramework("CoreWLAN"),
                 .linkedFramework("CoreLocation"),

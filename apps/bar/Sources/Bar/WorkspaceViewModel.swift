@@ -17,6 +17,9 @@ final class WorkspaceViewModel: ObservableObject {
         omniwm.onWorkspacesChanged = { [weak self] list in
             self?.apply(list)
         }
+        omniwm.onActiveWorkspace = { [weak self] rawName in
+            self?.optimisticActivate(rawName, occupied: nil)
+        }
         omniwm.onSpaceCommand = { [weak self] payload in
             self?.applySpacePayload(payload)
         }
@@ -69,6 +72,10 @@ final class WorkspaceViewModel: ObservableObject {
         omniwm.switchToWorkspace(rawName)
     }
 
+    func openOmniWMMenu() {
+        omniwm.openMenuAnywhere()
+    }
+
     // MARK: - Private
 
     private func apply(_ list: [WorkspaceInfo]?) {
@@ -90,9 +97,16 @@ final class WorkspaceViewModel: ObservableObject {
         }
 
         let previousActive = activeRawName
-        workspaces = filtered
-        activeRawName = filtered.first(where: \.isCurrent)?.rawName
+        let nextActive = filtered.first(where: \.isCurrent)?.rawName
             ?? filtered.first(where: \.isVisible)?.rawName
+
+        // Avoid republishing identical snapshots (keeps the strip from thrashing).
+        if filtered != workspaces {
+            workspaces = filtered
+        }
+        if nextActive != activeRawName {
+            activeRawName = nextActive
+        }
 
         if activeRawName != previousActive {
             transitionToken = UUID()

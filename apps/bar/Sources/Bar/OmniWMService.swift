@@ -89,9 +89,15 @@ final class OmniWMService {
     /// Exponential backoff for subscribe restarts (caps thrash when omniwmctl is missing).
     private var restartDelay: TimeInterval = 1.0
     private let maxRestartDelay: TimeInterval = 60.0
+    /// Incomplete NDJSON line leftover from the subscribe pipe.
+    private var subscribeLineBuffer = Data()
+    /// Bumped to drop stale `query workspaces` results after a newer event.
+    private var refreshGeneration: UInt64 = 0
 
     /// Fired when OmniWM state should be re-queried / applied.
     var onWorkspacesChanged: (([WorkspaceInfo]?) -> Void)?
+    /// Immediate active workspace from subscribe `active-workspace` events.
+    var onActiveWorkspace: ((String) -> Void)?
     /// Fired for distributed-notification / external space payloads.
     var onSpaceCommand: ((String) -> Void)?
 
@@ -118,11 +124,14 @@ final class OmniWMService {
 
     /// Re-query OmniWM and push results through `onWorkspacesChanged`.
     func refreshFromCLI() {
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
         let path = ctlPath
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let workspaces = Self.queryWorkspacesSync(ctlPath: path)
             DispatchQueue.main.async {
-                self?.onWorkspacesChanged?(workspaces)
+                guard let self, generation == self.refreshGeneration else { return }
+                self.onWorkspacesChanged?(workspaces)
             }
         }
     }
@@ -133,6 +142,20 @@ final class OmniWMService {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: path)
             process.arguments = ["command", "switch-workspace", "anywhere", rawName]
+            process.standardOutput = Pipe()
+            process.standardError = Pipe()
+            try? process.run()
+            process.waitUntilExit()
+        }
+    }
+
+    /// Opens OmniWM's anywhere dropdown menu (same as `openMenuAnywhere` hotkey).
+    func openMenuAnywhere() {
+        let path = ctlPath
+        DispatchQueue.global(qos: .userInitiated).async {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: path)
+            process.arguments = ["command", "open-menu-anywhere"]
             process.standardOutput = Pipe()
             process.standardError = Pipe()
             try? process.run()
@@ -233,6 +256,8 @@ final class OmniWMService {
         stdoutPipe = stdout
         stderrPipe = stderr
 
+        subscribeLineBuffer.removeAll(keepingCapacity: true)
+
         let handle = stdout.fileHandleForReading
         readHandle = handle
         handle.readabilityHandler = { [weak self] fileHandle in
@@ -241,9 +266,8 @@ final class OmniWMService {
                 fileHandle.readabilityHandler = nil
                 return
             }
-            // Any NDJSON event → debounced re-query.
             DispatchQueue.main.async {
-                self?.scheduleRefreshFromEvent()
+                self?.consumeSubscribeChunk(chunk)
             }
         }
 
@@ -258,13 +282,99 @@ final class OmniWMService {
         }
     }
 
-    private func scheduleRefreshFromEvent() {
+    private func consumeSubscribeChunk(_ chunk: Data) {
+        subscribeLineBuffer.append(chunk)
+        let newline = Data([0x0A])
+        while let range = subscribeLineBuffer.range(of: newline) {
+            let line = subscribeLineBuffer.subdata(in: subscribeLineBuffer.startIndex..<range.lowerBound)
+            subscribeLineBuffer.removeSubrange(subscribeLineBuffer.startIndex..<range.upperBound)
+            guard !line.isEmpty else { continue }
+            handleSubscribeLine(line)
+        }
+        // Cap runaway buffer if OmniWM ever streams without newlines.
+        if subscribeLineBuffer.count > 1_048_576 {
+            subscribeLineBuffer.removeAll(keepingCapacity: false)
+        }
+    }
+
+    private func handleSubscribeLine(_ line: Data) {
+        guard let event = Self.parseSubscribeEvent(line) else {
+            scheduleRefreshFromEvent(delay: 0.08)
+            return
+        }
+
+        switch event {
+        case .subscribed:
+            break
+        case .activeWorkspace(let rawName):
+            // Accent follows OmniWM immediately — do not wait on a full query.
+            refreshGeneration &+= 1
+            onActiveWorkspace?(rawName)
+            // Occupancy / visibility catch-up shortly after.
+            scheduleRefreshFromEvent(delay: 0.12)
+        case .needsWorkspaceQuery:
+            scheduleRefreshFromEvent(delay: 0.08)
+        }
+    }
+
+    private enum SubscribeEvent {
+        case subscribed
+        case activeWorkspace(String)
+        case needsWorkspaceQuery
+    }
+
+    nonisolated private static func parseSubscribeEvent(_ data: Data) -> SubscribeEvent? {
+        struct Line: Decodable {
+            let kind: String?
+            let channel: String?
+            let result: ResultBlock?
+        }
+        struct ResultBlock: Decodable {
+            let kind: String?
+            let payload: Payload?
+        }
+        struct Payload: Decodable {
+            let workspace: WorkspaceRef?
+            let channels: [String]?
+        }
+        struct WorkspaceRef: Decodable {
+            let rawName: String?
+        }
+
+        guard let line = try? JSONDecoder().decode(Line.self, from: data) else {
+            return nil
+        }
+
+        if line.kind == "subscribe" || line.result?.kind == "subscribed" {
+            return .subscribed
+        }
+
+        let channel = line.channel ?? ""
+        let resultKind = line.result?.kind ?? ""
+        if channel == "active-workspace" || resultKind == "active-workspace" {
+            if let raw = line.result?.payload?.workspace?.rawName?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+               !raw.isEmpty {
+                return .activeWorkspace(raw)
+            }
+            return .needsWorkspaceQuery
+        }
+
+        if channel == "windows-changed" || channel == "layout-changed"
+            || resultKind == "windows" || resultKind == "layout-changed" {
+            return .needsWorkspaceQuery
+        }
+
+        return .needsWorkspaceQuery
+    }
+
+    private func scheduleRefreshFromEvent(delay: TimeInterval = 0.08) {
         refreshDebounce?.cancel()
         let item = DispatchWorkItem { [weak self] in
             self?.refreshFromCLI()
         }
         refreshDebounce = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: item)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
     }
 
     private func scheduleSubscriptionRestart() {
@@ -291,6 +401,7 @@ final class OmniWMService {
         subscribeProcess = nil
         stdoutPipe = nil
         stderrPipe = nil
+        subscribeLineBuffer.removeAll(keepingCapacity: false)
     }
 
     // MARK: - Distributed notifications
