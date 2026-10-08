@@ -12,6 +12,8 @@ final class BatteryViewModel: ObservableObject {
     private var timer: Timer?
     private var wakeObserver: NSObjectProtocol?
     private var powerSourceRunLoopSource: CFRunLoopSource?
+    /// Weak bridge so the IOPS C callback never holds `self` unretained.
+    private var powerSourceBridge: PowerSourceBridge?
 
     var isPresent: Bool { percent != nil }
 
@@ -82,16 +84,20 @@ final class BatteryViewModel: ObservableObject {
 
     private func installPowerSourceNotifications() {
         removePowerSourceNotifications()
-        let context = Unmanaged.passUnretained(self).toOpaque()
+        let bridge = PowerSourceBridge()
+        bridge.model = self
+        powerSourceBridge = bridge
+        let context = Unmanaged.passUnretained(bridge).toOpaque()
         let callback: IOPowerSourceCallbackType = { context in
             guard let context else { return }
-            let model = Unmanaged<BatteryViewModel>.fromOpaque(context).takeUnretainedValue()
+            let bridge = Unmanaged<PowerSourceBridge>.fromOpaque(context).takeUnretainedValue()
             Task { @MainActor in
-                model.refresh()
+                bridge.model?.refresh()
             }
         }
         guard let source = IOPSNotificationCreateRunLoopSource(callback, context)?.takeRetainedValue() else {
             NSLog("[Bar] IOPSNotificationCreateRunLoopSource failed")
+            powerSourceBridge = nil
             return
         }
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
@@ -103,6 +109,12 @@ final class BatteryViewModel: ObservableObject {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
             powerSourceRunLoopSource = nil
         }
+        powerSourceBridge = nil
+    }
+
+    /// Opaque target for `IOPSNotificationCreateRunLoopSource` (must outlive the source).
+    private final class PowerSourceBridge {
+        weak var model: BatteryViewModel?
     }
 
     // MARK: - IOKit

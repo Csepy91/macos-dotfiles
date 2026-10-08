@@ -67,7 +67,12 @@ enum SystemActions {
             process.arguments = ["sleepnow"]
             process.standardOutput = Pipe()
             process.standardError = Pipe()
-            try? process.run()
+            do {
+                try process.run()
+                process.waitUntilExit()
+            } catch {
+                NSLog("[Bar] pmset sleepnow failed: \(error)")
+            }
         }
     }
 

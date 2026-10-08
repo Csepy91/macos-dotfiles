@@ -138,19 +138,17 @@ struct WorkspaceBarView: View {
 
 // MARK: - Bluetooth
 
-private final class BluetoothButtonFrameStore {
-    var screenFrame: NSRect = .zero
-}
-
 private struct BluetoothButton: View {
     @ObservedObject var bluetooth: BluetoothViewModel
     let theme: ThemeConfig
-    private let frameStore = BluetoothButtonFrameStore()
+    /// Class boxed in `@State` so identity survives body rebuilds without
+    /// mutating value-`@State` during `NSViewRepresentable.updateNSView`.
+    @State private var frameBox = ScreenFrameBox()
 
     var body: some View {
         Button {
             BluetoothMenuController.shared.toggle(
-                relativeTo: frameStore.screenFrame,
+                relativeTo: frameBox.rect,
                 theme: theme
             )
         } label: {
@@ -174,7 +172,7 @@ private struct BluetoothButton: View {
         .help(bluetooth.helpText)
         .background(
             ScreenFrameReader { frame in
-                frameStore.screenFrame = frame
+                frameBox.rect = frame
             }
         )
     }
@@ -190,19 +188,15 @@ private struct BluetoothButton: View {
 
 // MARK: - Wi-Fi
 
-private final class WiFiButtonFrameStore {
-    var screenFrame: NSRect = .zero
-}
-
 private struct WiFiButton: View {
     @ObservedObject var wifi: WiFiViewModel
     let theme: ThemeConfig
-    private let frameStore = WiFiButtonFrameStore()
+    @State private var frameBox = ScreenFrameBox()
 
     var body: some View {
         Button {
             WiFiMenuController.shared.toggle(
-                relativeTo: frameStore.screenFrame,
+                relativeTo: frameBox.rect,
                 theme: theme
             )
         } label: {
@@ -222,7 +216,7 @@ private struct WiFiButton: View {
         .help(wifi.ssid.map { "Wi-Fi: \($0)" } ?? "Wi-Fi")
         .background(
             ScreenFrameReader { frame in
-                frameStore.screenFrame = frame
+                frameBox.rect = frame
             }
         )
     }
@@ -282,18 +276,14 @@ private struct BatteryButton: View {
 
 // MARK: - Clock
 
-private final class ClockButtonFrameStore {
-    var screenFrame: NSRect = .zero
-}
-
 private struct ClockButton: View {
     let time: String
     let theme: ThemeConfig
-    private let frameStore = ClockButtonFrameStore()
+    @State private var frameBox = ScreenFrameBox()
 
     var body: some View {
         Button {
-            CalendarBarClient.toggle(anchor: frameStore.screenFrame)
+            CalendarBarClient.toggle(anchor: frameBox.rect)
         } label: {
             Text(time)
                 .font(clockFont)
@@ -307,7 +297,7 @@ private struct ClockButton: View {
         .help("Calendar")
         .background(
             ScreenFrameReader { frame in
-                frameStore.screenFrame = frame
+                frameBox.rect = frame
             }
         )
     }
@@ -323,18 +313,14 @@ private struct ClockButton: View {
 
 // MARK: - Apple logo button
 
-private final class AppleButtonFrameStore {
-    var screenFrame: NSRect = .zero
-}
-
 private struct AppleMenuButton: View {
     let theme: ThemeConfig
-    private let frameStore = AppleButtonFrameStore()
+    @State private var frameBox = ScreenFrameBox()
 
     var body: some View {
         Button {
             AppleMenuController.shared.toggle(
-                relativeTo: frameStore.screenFrame,
+                relativeTo: frameBox.rect,
                 theme: theme
             )
         } label: {
@@ -349,10 +335,15 @@ private struct AppleMenuButton: View {
         .help("Apple menu")
         .background(
             ScreenFrameReader { frame in
-                frameStore.screenFrame = frame
+                frameBox.rect = frame
             }
         )
     }
+}
+
+/// Mutable screen rect shared across SwiftUI body rebuilds.
+private final class ScreenFrameBox {
+    var rect: NSRect = .zero
 }
 
 /// Reports this view's frame in AppKit screen coordinates.
