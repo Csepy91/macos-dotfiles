@@ -18,6 +18,7 @@
   },
   "behavior": {
     "hide_on_blur": true,
-    "hotkey": "off"
+    "hotkey": "off",
+    "clipboard_max_items": 100
   }
 }

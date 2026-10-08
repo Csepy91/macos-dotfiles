@@ -1,6 +1,6 @@
 # CalendarBar (SwiftPM)
 
-Native macOS notch calendar + EventKit agenda for this rice.
+Native macOS notch calendar + EventKit agenda for this rice (1.0).
 
 ## Build
 

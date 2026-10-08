@@ -61,14 +61,30 @@ struct DimensionsConfig: Codable, Equatable {
 struct BehaviorConfig: Codable, Equatable {
     var hideOnBlur: Bool
     var hotkey: String
+    /// Max clipboard-history entries (text + images). Default 100.
+    var clipboardMaxItems: Int
 
     enum CodingKeys: String, CodingKey {
         case hideOnBlur = "hide_on_blur"
         case hotkey
+        case clipboardMaxItems = "clipboard_max_items"
     }
 
     /// Carbon hotkey is opt-in. Rice defaults to skhd (`Alt+R`); set e.g. `cmd+space` for standalone use.
-    static let `default` = BehaviorConfig(hideOnBlur: true, hotkey: "off")
+    static let `default` = BehaviorConfig(hideOnBlur: true, hotkey: "off", clipboardMaxItems: 100)
+
+    init(hideOnBlur: Bool, hotkey: String, clipboardMaxItems: Int = 100) {
+        self.hideOnBlur = hideOnBlur
+        self.hotkey = hotkey
+        self.clipboardMaxItems = max(1, clipboardMaxItems)
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        hideOnBlur = try c.decodeIfPresent(Bool.self, forKey: .hideOnBlur) ?? true
+        hotkey = try c.decodeIfPresent(String.self, forKey: .hotkey) ?? "off"
+        clipboardMaxItems = max(1, try c.decodeIfPresent(Int.self, forKey: .clipboardMaxItems) ?? 100)
+    }
 }
 
 struct LauncherConfig: Codable, Equatable {

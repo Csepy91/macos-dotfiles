@@ -120,7 +120,7 @@ struct MainView: View {
         }
     }
 
-    /// Apps stay flat; menu commands group under their top-level menu title.
+    /// Apps / clipboard stay flat; menu commands group under their top-level menu title.
     private var displayRows: [DisplayRow] {
         guard viewModel.mode == .menu else {
             return viewModel.results.map { .item($0) }
@@ -145,7 +145,7 @@ struct MainView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: viewModel.mode == .apps ? "sparkle.magnifyingglass" : "menubar.rectangle")
+            Image(systemName: headerIcon)
                 .foregroundStyle(Color(hex: theme.subtextColor))
                 .frame(width: 18)
 
@@ -166,6 +166,14 @@ struct MainView: View {
         .padding(.vertical, 14)
     }
 
+    private var headerIcon: String {
+        switch viewModel.mode {
+        case .apps: return "sparkle.magnifyingglass"
+        case .menu: return "menubar.rectangle"
+        case .clipboard: return "clipboard"
+        }
+    }
+
     private var modeBadge: some View {
         Text(viewModel.mode.rawValue.uppercased())
             .font(.system(size: max(theme.fontSize - 3, 10), weight: .semibold, design: .rounded))
@@ -177,13 +185,14 @@ struct MainView: View {
                 Capsule(style: .continuous)
                     .fill(Color(hex: theme.selectionBackground))
             )
-            .help("Tab or type : to switch modes")
+            .help("Tab to cycle modes · : Menu · ; Clipboard")
     }
 
     private var placeholder: String {
         switch viewModel.mode {
         case .apps: return "Search apps…"
         case .menu: return "Search menu commands…"
+        case .clipboard: return "Search clipboard history…"
         }
     }
 
@@ -242,7 +251,11 @@ struct MainView: View {
 
     private var emptyMessage: String {
         if viewModel.query.isEmpty {
-            return viewModel.mode == .apps ? "Start typing to filter applications." : "No menu commands found."
+            switch viewModel.mode {
+            case .apps: return "Start typing to filter applications."
+            case .menu: return "No menu commands found."
+            case .clipboard: return "Clipboard history is empty."
+            }
         }
         return "No matches."
     }
@@ -317,6 +330,21 @@ private struct ResultRow: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(Color(hex: isSelected ? theme.selectionText : theme.subtextColor))
                 .frame(width: 28, height: 28)
+        case .clipboard(let entry):
+            if entry.kind == .image,
+               let nsImage = ClipboardHistoryStore.shared.image(for: entry)
+            {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 28, height: 28)
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            } else {
+                Image(systemName: "doc.on.clipboard")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color(hex: isSelected ? theme.selectionText : theme.subtextColor))
+                    .frame(width: 28, height: 28)
+            }
         }
     }
 }
@@ -345,7 +373,14 @@ enum LauncherKeyRouter {
             viewModel.toggleMode()
             return true
         case 36, 76: // return / keypad enter
-            if viewModel.activateSelection() {
+            let shift = event.modifierFlags.contains(.shift)
+            let ok: Bool
+            if shift, viewModel.mode == .clipboard {
+                ok = viewModel.pasteSelection()
+            } else {
+                ok = viewModel.activateSelection()
+            }
+            if ok {
                 onActivate()
             }
             return true

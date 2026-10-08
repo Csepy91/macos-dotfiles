@@ -31,17 +31,19 @@ enum LauncherMain {
 struct CLIFlags {
     var toggle = false
     var menu = false
+    var clipboard = false
     var show = false
     var hide = false
     var reload = false
     var noHotkey = false
 
     var wantsRemoteAction: Bool {
-        toggle || menu || show || hide || reload
+        toggle || menu || clipboard || show || hide || reload
     }
 
     var ipcCommand: IPCCommand {
         if menu { return .menu }
+        if clipboard { return .clipboard }
         if hide { return .hide }
         if reload { return .reload }
         if show { return .show }
@@ -54,6 +56,7 @@ struct CLIFlags {
             switch arg {
             case "--toggle", "-t": flags.toggle = true
             case "--menu", "-m": flags.menu = true
+            case "--clipboard", "-c": flags.clipboard = true
             case "--show": flags.show = true
             case "--hide": flags.hide = true
             case "--reload", "-r": flags.reload = true
@@ -70,12 +73,13 @@ struct CLIFlags {
 
     static func printHelp() {
         let help = """
-        Launcher — keyboard-driven app launcher & menu-bar command palette
+        Launcher — keyboard-driven app launcher, menu palette & clipboard history
 
         Usage:
           launcher                 Start the background agent
           launcher --toggle        Toggle the panel (skhd)
           launcher --menu          Open in Menu Search mode
+          launcher --clipboard     Open in Clipboard History mode
           launcher --show          Show the panel
           launcher --hide          Hide the panel
           launcher --reload        Reload ~/.config/launcher/config.json
@@ -147,9 +151,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if self.registerHotkey {
                     HotkeyManager.shared.update(from: config.behavior.hotkey)
                 }
+                ClipboardHistoryStore.shared.updateMaxItems(config.behavior.clipboardMaxItems)
             }
             .store(in: &cancellables)
 
+        ClipboardHistoryStore.shared.start(maxItems: configManager.config.behavior.clipboardMaxItems)
         viewModel.refreshApps()
         installWorkspaceObservers()
 
@@ -161,6 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         blurSuppressWorkItem?.cancel()
         appRefreshWorkItem?.cancel()
+        ClipboardHistoryStore.shared.stop()
         removeKeyMonitor()
         removeWorkspaceObservers()
     }
@@ -220,6 +227,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 hide()
             } else {
                 show(mode: .menu)
+            }
+        case .clipboard:
+            if isShowing, viewModel.mode == .clipboard {
+                hide()
+            } else {
+                show(mode: .clipboard)
             }
         case .show:
             show(mode: .apps)

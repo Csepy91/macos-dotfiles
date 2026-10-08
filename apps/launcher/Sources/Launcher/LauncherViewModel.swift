@@ -6,16 +6,19 @@ import SwiftUI
 enum LauncherMode: String {
     case apps = "Apps"
     case menu = "Menu"
+    case clipboard = "Clipboard"
 }
 
 enum LauncherItem: Identifiable, Hashable {
     case app(LauncherApp)
     case menu(MenuCommand)
+    case clipboard(ClipboardEntry)
 
     var id: String {
         switch self {
         case .app(let app): return "app:\(app.id)"
         case .menu(let cmd): return "menu:\(cmd.id)"
+        case .clipboard(let entry): return "clip:\(entry.id)"
         }
     }
 
@@ -23,6 +26,7 @@ enum LauncherItem: Identifiable, Hashable {
         switch self {
         case .app(let app): return app.name
         case .menu(let cmd): return cmd.displayTitle
+        case .clipboard(let entry): return entry.displayTitle
         }
     }
 
@@ -30,6 +34,11 @@ enum LauncherItem: Identifiable, Hashable {
         switch self {
         case .app(let app): return app.path
         case .menu: return ""
+        case .clipboard(let entry):
+            switch entry.kind {
+            case .text: return RelativeTime.string(from: entry.createdAt)
+            case .image: return "Image · \(RelativeTime.string(from: entry.createdAt))"
+            }
         }
     }
 
@@ -37,7 +46,16 @@ enum LauncherItem: Identifiable, Hashable {
         switch self {
         case .app(let app): return app.name
         case .menu(let cmd): return cmd.path
+        case .clipboard(let entry): return entry.searchKey
         }
+    }
+}
+
+enum RelativeTime {
+    static func string(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 
@@ -52,9 +70,10 @@ final class LauncherViewModel: ObservableObject {
 
     private var apps: [LauncherApp] = []
     private var menuCommands: [MenuCommand] = []
-    /// App that was frontmost when the panel opened (for Menu Search after we steal focus).
+    /// App that was frontmost when the panel opened (for Menu Search / paste after we steal focus).
     private var targetApp: NSRunningApplication?
     private var cancellables = Set<AnyCancellable>()
+    private let clipboardStore = ClipboardHistoryStore.shared
 
     init() {
         $query
@@ -62,6 +81,14 @@ final class LauncherViewModel: ObservableObject {
             .debounce(for: .milliseconds(40), scheduler: RunLoop.main)
             .sink { [weak self] query, mode in
                 self?.recompute(query: query, mode: mode)
+            }
+            .store(in: &cancellables)
+
+        clipboardStore.$entries
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self, self.mode == .clipboard else { return }
+                self.recompute(query: self.query, mode: .clipboard)
             }
             .store(in: &cancellables)
     }
@@ -97,7 +124,11 @@ final class LauncherViewModel: ObservableObject {
     }
 
     func toggleMode() {
-        mode = (mode == .apps) ? .menu : .apps
+        switch mode {
+        case .apps: mode = .menu
+        case .menu: mode = .clipboard
+        case .clipboard: mode = .apps
+        }
         query = ""
         selectedIndex = 0
         if mode == .menu {
@@ -181,6 +212,17 @@ final class LauncherViewModel: ObservableObject {
         return activate(results[selectedIndex])
     }
 
+    /// Clipboard mode: copy selected entry then paste into the previously focused app.
+    @discardableResult
+    func pasteSelection() -> Bool {
+        guard mode == .clipboard else { return activateSelection() }
+        guard results.indices.contains(selectedIndex),
+              case .clipboard(let entry) = results[selectedIndex]
+        else { return false }
+        guard clipboardStore.copyToPasteboard(entry) else { return false }
+        return pasteIntoTargetApp()
+    }
+
     @discardableResult
     func activate(_ item: LauncherItem) -> Bool {
         switch item {
@@ -199,6 +241,8 @@ final class LauncherViewModel: ObservableObject {
                 return false
             }
             return MenuBarScanner.perform(command)
+        case .clipboard(let entry):
+            return clipboardStore.copyToPasteboard(entry)
         }
     }
 
@@ -212,8 +256,35 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
+    private func pasteIntoTargetApp() -> Bool {
+        guard let app = targetApp, !app.isTerminated else {
+            // No target — clipboard was still updated.
+            return true
+        }
+        let activated = app.activate(options: [.activateIgnoringOtherApps])
+        guard activated else { return true }
+
+        // Delay so the target becomes key before Cmd+V.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            Self.postCommandV()
+        }
+        return true
+    }
+
+    private static func postCommandV() {
+        let source = CGEventSource(stateID: .hidSystemState)
+        let keyV: CGKeyCode = 9 // kVK_ANSI_V
+        guard let down = CGEvent(keyboardEventSource: source, virtualKey: keyV, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: keyV, keyDown: false)
+        else { return }
+        down.flags = .maskCommand
+        up.flags = .maskCommand
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
+    }
+
     private func recompute(query: String, mode: LauncherMode) {
-        // Leading `:` switches into menu mode (Raycast-style).
+        // Leading `:` → Menu; leading `;` → Clipboard (Raycast-style).
         var effectiveQuery = query
         var effectiveMode = mode
         if query.hasPrefix(":") {
@@ -222,6 +293,12 @@ final class LauncherViewModel: ObservableObject {
             if self.mode != .menu {
                 self.mode = .menu
                 refreshMenuCommands()
+            }
+        } else if query.hasPrefix(";") {
+            effectiveMode = .clipboard
+            effectiveQuery = String(query.dropFirst())
+            if self.mode != .clipboard {
+                self.mode = .clipboard
             }
         }
 
@@ -234,6 +311,13 @@ final class LauncherViewModel: ObservableObject {
             // Do not re-walk AX on every keystroke — scan only on mode entry / grant.
             let ranked = FuzzySearch.ranked(query: effectiveQuery, items: menuCommands, key: \.path)
             items = ranked.map { .menu($0) }
+        case .clipboard:
+            let ranked = FuzzySearch.ranked(
+                query: effectiveQuery,
+                items: clipboardStore.entries,
+                key: \.searchKey
+            )
+            items = ranked.map { .clipboard($0) }
         }
 
         results = items

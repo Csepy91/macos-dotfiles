@@ -3,6 +3,7 @@ import Foundation
 enum IPCCommand: String {
     case toggle
     case menu
+    case clipboard
     case show
     case hide
     case reload

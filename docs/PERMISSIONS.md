@@ -158,7 +158,9 @@ Notch-spawned keyboard launcher (`~/Applications/Launcher.app`).
 | --- | --- |
 | `Alt+R` | Toggle Apps mode (Launcher Carbon hotkey) |
 | `Alt+Shift+R` | Open Menu Bar Search (`launcher --menu` via skhd) |
-| `Tab` / leading `:` | Switch Apps ↔ Menu inside the panel |
+| `Tab` | Cycle Apps → Menu → Clipboard inside the panel |
+| Leading `:` / `;` | Jump to Menu / Clipboard |
+| Clipboard `Enter` / `Shift+Enter` | Copy item / paste into previous app |
 
 `behavior.hotkey` defaults to `"alt+r"`. Keep that chord out of skhdrc to avoid
 a double-fire. Grant **Accessibility** to **Launcher** for the hotkey + menu search.

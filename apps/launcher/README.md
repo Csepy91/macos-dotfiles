@@ -1,6 +1,7 @@
 # Launcher (SwiftPM)
 
-Native macOS notch launcher + menu-bar command palette for this rice.
+Native macOS notch launcher + menu-bar command palette + clipboard history
+for this rice.
 
 ## Build
 
@@ -26,6 +27,7 @@ that grant survives rebuilds (ad-hoc signing does not).
 | `NotchWindow.swift` | Floating `NSPanel` under the notch |
 | `AppScanner.swift` | `/Applications` indexer |
 | `MenuBarScanner.swift` | `AXUIElement` menu walk / press |
+| `ClipboardHistoryStore.swift` | Pasteboard poll + text/image persistence |
 | `LauncherViewModel.swift` | Fuzzy filter, modes, keyboard |
 | `MainView.swift` | SwiftUI UI bound to theme tokens |
 | `HotkeyManager.swift` | Carbon global hotkey (opt-in; rice uses skhd) |
@@ -39,3 +41,7 @@ skhd only owns Menu Search:
 ```text
 alt + shift - r : ~/.config/skhd/open-launcher-menu.sh
 ```
+
+Inside the panel: `Tab` cycles Apps → Menu → Clipboard; `:` jumps to Menu;
+`;` jumps to Clipboard. In Clipboard mode, `Enter` copies and `Shift+Enter`
+pastes into the previously focused app.
