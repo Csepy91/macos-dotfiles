@@ -295,8 +295,12 @@ theme_apply_cursor() {
 
   local patcher="${THEME_DIR}/patch_cursor_theme.py"
   [[ -f "${patcher}" ]] || theme_die "missing ${patcher}"
-  /usr/bin/env python3 "${patcher}" "${ext_root}" "${settings}"
-  theme_info "Cursor: reload window (Cmd+Shift+P → Developer: Reload Window) to pick up Dotfiles"
+  # Soft-fail: JSONC/settings quirks must not abort the rest of theme apply.
+  if /usr/bin/env python3 "${patcher}" "${ext_root}" "${settings}"; then
+    theme_info "Cursor: reload window (Cmd+Shift+P → Developer: Reload Window) to pick up Dotfiles"
+  else
+    theme_info "Cursor theme pin failed (non-fatal) — extension files were still written"
+  fi
 }
 
 # Write palette-driven userChrome/userContent into every Zen profile.

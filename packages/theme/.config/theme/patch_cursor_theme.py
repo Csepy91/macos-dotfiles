@@ -10,6 +10,7 @@ Does not wipe unrelated user settings — only ensures rice keys exist.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -27,14 +28,62 @@ OWNED_SETTINGS = {
 }
 
 
+def strip_jsonc(text: str) -> str:
+    """Remove // and /* */ comments outside of strings (VS Code / Cursor JSONC)."""
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    escape = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            out.append(ch)
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == "/" and i + 1 < n:
+            nxt = text[i + 1]
+            if nxt == "/":
+                i += 2
+                while i < n and text[i] not in "\r\n":
+                    i += 1
+                continue
+            if nxt == "*":
+                i += 2
+                while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
+                    i += 1
+                i = min(i + 2, n)
+                continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def load_json(path: Path, default):
     if not path.is_file():
         return default
     text = path.read_text(encoding="utf-8").strip()
     if not text:
         return default
-    # settings.json may be JSONC; strip // and /* */ is overkill — rice writes pure JSON.
-    return json.loads(text)
+    # Cursor/VS Code settings.json is often JSONC (comments / trailing commas).
+    cleaned = strip_jsonc(text)
+    # Trailing commas before } or ]
+    cleaned = re.sub(r",(\s*[}\]])", r"\1", cleaned)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"cannot parse {path}: {exc}") from exc
 
 
 def write_json(path: Path, data) -> None:
