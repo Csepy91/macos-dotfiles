@@ -21,6 +21,9 @@ final class FullscreenMonitor: ObservableObject {
     private var pollTimer: Timer?
     private var isRunning = false
     private var isRevealed = false
+    /// Last AX fullscreen bit from a non-Bar frontmost app. Used when Bar is
+    /// frontmost (click) or AX is briefly inconclusive under OmniWM.
+    private var cachedAXFullscreen: Bool?
 
     /// Hot edge that triggers reveal (points from top of screen).
     private let revealEdge: CGFloat = 39
@@ -46,6 +49,7 @@ final class FullscreenMonitor: ObservableObject {
         isFullscreen = false
         isRevealed = false
         shouldHideBar = false
+        cachedAXFullscreen = nil
     }
 
     // MARK: - Observers
@@ -104,8 +108,8 @@ final class FullscreenMonitor: ObservableObject {
 
     private func evaluateFullscreen() {
         guard isRunning else { return }
-        guard let next = Self.isNativeFullscreenSpace() else {
-            // Inconclusive (CGWindowList copy failed) — keep prior fullscreen state.
+        guard let next = resolveFullscreen() else {
+            // Still inconclusive — keep prior fullscreen state.
             if isFullscreen { updateRevealFromMouse() }
             return
         }
@@ -129,12 +133,40 @@ final class FullscreenMonitor: ObservableObject {
         }
     }
 
+    /// Prefer live AX from the real frontmost app; when Bar is frontmost (or AX
+    /// misses), reuse the last known non-Bar fullscreen bit so OmniWM's hidden
+    /// menu strip cannot leave the bar stuck alpha-0.
+    private func resolveFullscreen() -> Bool? {
+        if let app = NSWorkspace.shared.frontmostApplication,
+           app.bundleIdentifier != "com.dotfiles.bar"
+        {
+            if let ax = Self.windowFullscreen(for: app) {
+                cachedAXFullscreen = ax
+                return ax
+            }
+            // Frontmost non-Bar app with no focused/main window → not fullscreen.
+            cachedAXFullscreen = false
+            return false
+        }
+
+        if let cachedAXFullscreen {
+            return cachedAXFullscreen
+        }
+        // Positive evidence only: a visible system menu strip means not fullscreen.
+        if Self.hasSystemMenuBarStrip() == true {
+            return false
+        }
+        return nil
+    }
+
     // MARK: - Top-edge reveal
 
     private func startMousePolling() {
         stopMousePolling()
         let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
+            // Prefer an explicit MainActor hop over assumeIsolated — safer if the
+            // timer ever fires off the main-actor executor under Swift 6.
+            Task { @MainActor in
                 self?.updateRevealFromMouse()
             }
         }
@@ -206,28 +238,8 @@ final class FullscreenMonitor: ObservableObject {
 
     // MARK: - Detection
 
-    /// `nil` means inconclusive — caller keeps the previous fullscreen state.
-    ///
-    /// Only trust an explicit AX fullscreen bit. OmniWM hides / overlaps the
-    /// system menu bar, so "no strip in CGWindowList" is normal on every
-    /// Space — treating that as fullscreen made the bar vanish after workspace
-    /// clicks (Bar becomes frontmost → AX inconclusive → false hide).
-    nonisolated static func isNativeFullscreenSpace() -> Bool? {
-        if let ax = frontmostWindowIsFullscreen() {
-            return ax
-        }
-        // Positive evidence only: a visible system menu strip means not fullscreen.
-        if hasSystemMenuBarStrip() == true {
-            return false
-        }
-        return nil
-    }
-
-    nonisolated static func frontmostWindowIsFullscreen() -> Bool? {
-        guard let app = NSWorkspace.shared.frontmostApplication,
-              app.bundleIdentifier != "com.dotfiles.bar"
-        else { return nil }
-
+    /// Explicit AX fullscreen bit for `app`, or `nil` when AX has no window.
+    nonisolated static func windowFullscreen(for app: NSRunningApplication) -> Bool? {
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
         if let focused = copyAXWindow(axApp, attribute: kAXFocusedWindowAttribute as CFString),
            let value = copyAXFullscreen(focused) {
@@ -238,6 +250,25 @@ final class FullscreenMonitor: ObservableObject {
             return value
         }
         return nil
+    }
+
+    /// Legacy helper kept for call sites / tests — prefer instance `resolveFullscreen()`.
+    nonisolated static func isNativeFullscreenSpace() -> Bool? {
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              app.bundleIdentifier != "com.dotfiles.bar"
+        else {
+            if hasSystemMenuBarStrip() == true { return false }
+            return nil
+        }
+        if let ax = windowFullscreen(for: app) { return ax }
+        return false
+    }
+
+    nonisolated static func frontmostWindowIsFullscreen() -> Bool? {
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              app.bundleIdentifier != "com.dotfiles.bar"
+        else { return nil }
+        return windowFullscreen(for: app)
     }
 
     nonisolated private static func copyAXWindow(

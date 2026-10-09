@@ -10,9 +10,10 @@ final class TopBarWindow: NSPanel {
 
     init(config: BarConfig, rootView: WorkspaceBarView) {
         self.config = config
-        let screen = NSScreen.main ?? NSScreen.screens.first!
+        let screen = NSScreen.main ?? NSScreen.screens.first
+        let width = screen?.frame.width ?? 1440
         let size = NSSize(
-            width: screen.frame.width,
+            width: width,
             height: config.dimensions.height
         )
 
@@ -105,7 +106,7 @@ final class TopBarWindow: NSPanel {
     }
 
     func reposition(animated: Bool) {
-        let screen = anchorScreen()
+        guard let screen = anchorScreen() else { return }
         let height = max(CGFloat(config.dimensions.height), 24)
         let margin = CGFloat(config.dimensions.marginTop)
         // Edge-to-edge: full display width, flush to the top (through the notch).
@@ -128,8 +129,8 @@ final class TopBarWindow: NSPanel {
 
     // MARK: - Layout helpers
 
-    private func anchorScreen() -> NSScreen {
-        NSScreen.main ?? NSScreen.screens.first!
+    private func anchorScreen() -> NSScreen? {
+        NSScreen.main ?? NSScreen.screens.first
     }
 
     private func applyChrome(to effect: NSVisualEffectView) {

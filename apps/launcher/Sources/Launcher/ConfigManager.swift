@@ -110,6 +110,9 @@ final class ConfigManager: ObservableObject {
         let delay = openRetryDelay
         openRetryDelay = min(openRetryDelay * 2, maxOpenRetryDelay)
         let item = DispatchWorkItem { [weak self] in
+            // Load before re-attaching — theme apply may have created the file
+            // while we were waiting (Bar / CalendarBar already do this).
+            self?.load()
             self?.startWatching()
         }
         openRetryWorkItem = item

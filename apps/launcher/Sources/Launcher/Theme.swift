@@ -70,7 +70,8 @@ struct BehaviorConfig: Codable, Equatable {
         case clipboardMaxItems = "clipboard_max_items"
     }
 
-    /// Carbon hotkey is opt-in. Rice defaults to skhd (`Alt+R`); set e.g. `cmd+space` for standalone use.
+    /// In-memory / seeded default keeps Carbon off. Rice `theme apply` writes
+    /// `alt+r` (Launcher owns Alt+R; skhd only binds Alt+Shift+R for Menu Search).
     static let `default` = BehaviorConfig(hideOnBlur: true, hotkey: "off", clipboardMaxItems: 100)
 
     init(hideOnBlur: Bool, hotkey: String, clipboardMaxItems: Int = 100) {

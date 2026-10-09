@@ -96,6 +96,39 @@ def enable_borders_section(text: str) -> str:
     return new_text
 
 
+# skhd owns these chords — clear OmniWM defaults so both stacks don't fight.
+SKHD_OWNED_HOTKEYS = (
+    "toggleFullscreen",  # was Option+Return — skhd: Ghostty
+    "toggleColumnTabbed",  # was Option+T — skhd: Transmission
+    "raiseAllFloatingWindows",  # was Option+Shift+R — skhd: Launcher menu
+)
+
+
+def unassign_skhd_collisions(text: str) -> str:
+    """Set binding = Unassigned for hotkey ids that skhd owns in this rice."""
+    # Split on [[hotkeys]] so each binding table is edited independently.
+    parts = re.split(r"(?=\[\[hotkeys\]\])", text)
+    out: list[str] = []
+    for part in parts:
+        if not part.startswith("[[hotkeys]]"):
+            out.append(part)
+            continue
+        for hotkey_id in SKHD_OWNED_HOTKEYS:
+            if re.search(rf'(?m)^id\s*=\s*"{re.escape(hotkey_id)}"\s*$', part):
+                new_part, n = re.subn(
+                    r'(?m)^(binding\s*=\s*)".*"\s*$',
+                    r'\1"Unassigned"',
+                    part,
+                    count=1,
+                )
+                if n and new_part != part:
+                    print(f"theme: unassigned OmniWM hotkey id={hotkey_id} (skhd-owned)")
+                    part = new_part
+                break
+        out.append(part)
+    return "".join(out)
+
+
 def main() -> int:
     path = Path(
         sys.argv[1]
@@ -125,6 +158,8 @@ def main() -> int:
 
     for header, hex_color in mapping.items():
         text = replace_table_rgb(text, header, hex_to_srgb(hex_color))
+
+    text = unassign_skhd_collisions(text)
 
     path.write_text(text, encoding="utf-8")
     print(f"theme: patched OmniWM colors → {path}")

@@ -717,7 +717,8 @@ binding = "Unassigned"
 id = "moveWindowToMonitor.down"
 
 [[hotkeys]]
-binding = "Option+Return"
+# Unassigned — skhd owns alt - return (Ghostty).
+binding = "Unassigned"
 id = "toggleFullscreen"
 
 [[hotkeys]]
@@ -749,7 +750,8 @@ binding = "Control+Option+End"
 id = "moveColumnToLast"
 
 [[hotkeys]]
-binding = "Option+T"
+# Unassigned — skhd owns alt - t (Transmission).
+binding = "Unassigned"
 id = "toggleColumnTabbed"
 
 [[hotkeys]]
@@ -993,7 +995,8 @@ binding = "Control+Option+Space"
 id = "openCommandPalette"
 
 [[hotkeys]]
-binding = "Option+Shift+R"
+# Unassigned — skhd owns alt + shift - r (Launcher Menu Search).
+binding = "Unassigned"
 id = "raiseAllFloatingWindows"
 
 [[hotkeys]]

@@ -122,10 +122,10 @@ final class NotchWindow: NSPanel {
     }
 
     func updateHeight(_ contentHeight: CGFloat) {
+        guard let screen = anchorScreen() else { return }
         let width = config.dimensions.width
         let height = min(max(contentHeight, 72), config.dimensions.maxHeight)
         var newFrame = frame
-        let screen = anchorScreen()
         let topY = notchBottomY(on: screen)
         newFrame.size = NSSize(width: width, height: height)
         newFrame.origin.x = screen.frame.midX - width / 2
@@ -134,7 +134,7 @@ final class NotchWindow: NSPanel {
     }
 
     func reposition(animated: Bool) {
-        let screen = anchorScreen()
+        guard let screen = anchorScreen() else { return }
         let width = config.dimensions.width
         let height = frame.height > 0 ? frame.height : 170
         let topY = notchBottomY(on: screen)
@@ -149,8 +149,8 @@ final class NotchWindow: NSPanel {
 
     // MARK: - Layout helpers
 
-    private func anchorScreen() -> NSScreen {
-        NSScreen.main ?? NSScreen.screens.first!
+    private func anchorScreen() -> NSScreen? {
+        NSScreen.main ?? NSScreen.screens.first
     }
 
     /// Y coordinate of the bottom edge of the notch / menu-bar strip (AppKit coords).
