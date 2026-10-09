@@ -55,9 +55,11 @@ final class BluetoothMenuController: ObservableObject {
             BluetoothService.setPower(next)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 guard let self, self.isPresented else { return }
-                self.reload()
-                self.statusMessage = nil
-                self.rebuildPanelContent()
+                self.reload {
+                    guard self.isPresented else { return }
+                    self.statusMessage = nil
+                    self.rebuildPanelContent()
+                }
             }
         }
     }
@@ -76,9 +78,11 @@ final class BluetoothMenuController: ObservableObject {
             Thread.sleep(forTimeInterval: 0.4)
             DispatchQueue.main.async {
                 guard let self, self.isPresented else { return }
-                self.reload()
-                self.statusMessage = nil
-                self.rebuildPanelContent()
+                self.reload {
+                    guard self.isPresented else { return }
+                    self.statusMessage = nil
+                    self.rebuildPanelContent()
+                }
             }
         }
     }
@@ -103,8 +107,13 @@ final class BluetoothMenuController: ObservableObject {
         BarPopoverCoordinator.willPresent()
         self.theme = theme
         hoveredItemID = nil
-        reload()
+        // Load status off-main, then show with fresh power/device rows.
+        reload { [weak self] in
+            self?.showPanel(relativeTo: buttonFrameInScreen)
+        }
+    }
 
+    private func showPanel(relativeTo buttonFrameInScreen: NSRect) {
         let root = BluetoothMenuView(controller: self, theme: theme)
         let hosting = NonVibrantBluetoothHostingView(rootView: root)
         let size = preferredSize()
@@ -165,10 +174,18 @@ final class BluetoothMenuController: ObservableObject {
         panel.setFrame(frame, display: true)
     }
 
-    private func reload() {
-        let status = BluetoothService.status()
-        powerOn = status.powerOn
-        devices = powerOn ? BluetoothService.pairedDevices() : []
+    private func reload(completion: (() -> Void)? = nil) {
+        // IOBluetooth walks can block under the shared lock — keep them off-main.
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let status = BluetoothService.status()
+            let devices = status.powerOn ? BluetoothService.pairedDevices() : []
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.powerOn = status.powerOn
+                self.devices = devices
+                completion?()
+            }
+        }
     }
 
     private func startRefreshTimer() {
@@ -178,9 +195,11 @@ final class BluetoothMenuController: ObservableObject {
                 guard let self, self.isPresented else { return }
                 let before = self.devices
                 let beforePower = self.powerOn
-                self.reload()
-                if before != self.devices || beforePower != self.powerOn {
-                    self.rebuildPanelContent()
+                self.reload {
+                    guard self.isPresented else { return }
+                    if before != self.devices || beforePower != self.powerOn {
+                        self.rebuildPanelContent()
+                    }
                 }
             }
         }

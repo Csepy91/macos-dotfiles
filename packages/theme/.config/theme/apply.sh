@@ -187,12 +187,13 @@ theme_patch_omniwm_colors() {
   fi
 
   if [[ ! -f "${dest}" ]]; then
-    local pkg="${THEME_DIR:A:h:h}/omniwm/.config/omniwm/settings.toml"
+    # THEME_DIR = packages/theme/.config/theme → ../../../omniwm/...
+    local pkg="${THEME_DIR:A:h:h:h}/omniwm/.config/omniwm/settings.toml"
     if [[ -f "${pkg}" ]]; then
       cp -f "${pkg}" "${dest}"
       theme_info "seeded ${dest} from package defaults"
     else
-      theme_info "skip OmniWM colors — no settings.toml at ${dest}"
+      theme_info "skip OmniWM colors — no settings.toml at ${dest} (seed missing: ${pkg})"
       return 0
     fi
   fi

@@ -175,9 +175,19 @@ final class WiFiMenuController: NSObject, ObservableObject, CLLocationManagerDel
     }
 
     private func reloadStatus() {
-        let status = WiFiService.status()
-        powerOn = status.powerOn
-        currentSSID = status.ssid
+        // CoreWLAN / ipconfig can block — never run on the main actor.
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let status = WiFiService.status()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                let powerChanged = self.powerOn != status.powerOn
+                self.powerOn = status.powerOn
+                self.currentSSID = status.ssid
+                if self.isPresented, powerChanged {
+                    self.rebuildPanelContent()
+                }
+            }
+        }
     }
 
     private func beginScan() {

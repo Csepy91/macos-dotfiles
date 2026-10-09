@@ -2,6 +2,8 @@ Brewfile.lock.json
 .direnv/
 *.swp
 .DS_Store
+**/__pycache__/
+*.py[cod]
 # SwiftPM (Launcher / CalendarBar / Bar)
 apps/launcher/.build/
 apps/launcher/.swiftpm/

@@ -1,0 +1,4 @@
+# settings.toml is theme-owned after first `theme apply` (materialized plain
+# file under ~/.config). Never stow it — restow would conflict with that file.
+# Seed / patch path: packages/theme/.../apply.sh → theme_patch_omniwm_colors.
+\.config/omniwm/settings\.toml

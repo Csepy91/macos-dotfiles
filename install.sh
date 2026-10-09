@@ -122,41 +122,50 @@ interactive_select() {
   local sel
   local -a gum_selected
 
+  # Confirm (exit 0) with zero selections must clear the category. Cancel
+  # (non-zero) leaves the previous flags alone — do not treat empty as cancel.
+  local status=0
   if (( $+commands[gum] )); then
     info "Select CLI tools (Space toggles, Enter confirms)"
     gum_selected=(${(z)$(gum_selected_args CLI "${cli_keys[@]}")})
-    sel="$(gum_choose --no-limit --header "CLI tools" "${gum_selected[@]}" "${cli_keys[@]}" || true)"
-    if [[ -n "$sel" ]]; then
-      apply_selection CLI "$sel"
-    fi
+    set +e
+    sel="$(gum_choose --no-limit --header "CLI tools" "${gum_selected[@]}" "${cli_keys[@]}")"
+    status=$?
+    set -e
+    (( status == 0 )) && apply_selection CLI "$sel"
 
     info "Select rice components"
     gum_selected=(${(z)$(gum_selected_args RICE "${rice_keys[@]}")})
-    sel="$(gum_choose --no-limit --header "Rice" "${gum_selected[@]}" "${rice_keys[@]}" || true)"
-    if [[ -n "$sel" ]]; then
-      apply_selection RICE "$sel"
-    fi
+    set +e
+    sel="$(gum_choose --no-limit --header "Rice" "${gum_selected[@]}" "${rice_keys[@]}")"
+    status=$?
+    set -e
+    (( status == 0 )) && apply_selection RICE "$sel"
 
     info "Select GUI apps"
     gum_selected=(${(z)$(gum_selected_args APPS "${apps_keys[@]}")})
-    sel="$(gum_choose --no-limit --header "GUI apps" "${gum_selected[@]}" "${apps_keys[@]}" || true)"
-    if [[ -n "$sel" ]]; then
-      apply_selection APPS "$sel"
-    fi
+    set +e
+    sel="$(gum_choose --no-limit --header "GUI apps" "${gum_selected[@]}" "${apps_keys[@]}")"
+    status=$?
+    set -e
+    (( status == 0 )) && apply_selection APPS "$sel"
   elif (( $+commands[fzf] )); then
     warn "gum not found — using fzf (TAB to multi-select)"
-    sel="$(printf '%s\n' "${cli_keys[@]}" | fzf --multi --prompt 'CLI > ' || true)"
-    if [[ -n "$sel" ]]; then
-      apply_selection CLI "$sel"
-    fi
-    sel="$(printf '%s\n' "${rice_keys[@]}" | fzf --multi --prompt 'Rice > ' || true)"
-    if [[ -n "$sel" ]]; then
-      apply_selection RICE "$sel"
-    fi
-    sel="$(printf '%s\n' "${apps_keys[@]}" | fzf --multi --prompt 'Apps > ' || true)"
-    if [[ -n "$sel" ]]; then
-      apply_selection APPS "$sel"
-    fi
+    set +e
+    sel="$(printf '%s\n' "${cli_keys[@]}" | fzf --multi --prompt 'CLI > ')"
+    status=$?
+    set -e
+    (( status == 0 )) && apply_selection CLI "$sel"
+    set +e
+    sel="$(printf '%s\n' "${rice_keys[@]}" | fzf --multi --prompt 'Rice > ')"
+    status=$?
+    set -e
+    (( status == 0 )) && apply_selection RICE "$sel"
+    set +e
+    sel="$(printf '%s\n' "${apps_keys[@]}" | fzf --multi --prompt 'Apps > ')"
+    status=$?
+    set -e
+    (( status == 0 )) && apply_selection APPS "$sel"
   else
     warn "Neither gum nor fzf found — keeping defaults."
     info "Tip: brew install gum && re-run ./install.sh"
@@ -518,6 +527,14 @@ install_bar_app() {
 # --- Wallpaper ---------------------------------------------------------------
 
 apply_wallpaper() {
+  # theme apply may already have set ~/.config/wallpaper/current.png + desktop
+  # from the active palette — do not clobber that with configs/wallpapers/default.png.
+  local theme_current="$HOME/.config/wallpaper/current.png"
+  if [[ -f "$theme_current" ]]; then
+    ok "Keeping theme wallpaper ($theme_current)"
+    return 0
+  fi
+
   local src="$ROOT/configs/wallpapers/default.png"
   if [[ ! -f "$src" ]]; then
     warn "No wallpaper at configs/wallpapers/default.png — skip"

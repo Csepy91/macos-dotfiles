@@ -70,22 +70,39 @@ final class IPCServer {
     @discardableResult
     func start() -> Bool {
         let url = Self.socketURL
-        // Only unlink if we are becoming the daemon; callers must ensure no live peer.
-        try? FileManager.default.removeItem(at: url)
 
-        let listener = UnixSocketListener(path: url.path, queue: queue)
-        listener.onMessage = { [weak self] line in
-            guard let command = IPCCommand.parse(line) else { return }
-            if command == .ping { return }
-            DispatchQueue.main.async {
-                self?.onCommand?(command)
+        let wire: (UnixSocketListener) -> Void = { listener in
+            listener.onMessage = { [weak self] line in
+                guard let command = IPCCommand.parse(line) else { return }
+                if command == .ping { return }
+                DispatchQueue.main.async {
+                    self?.onCommand?(command)
+                }
             }
         }
-        guard listener.start() else {
+
+        // Bind without unlinking first — never steal a live peer's socket path.
+        let first = UnixSocketListener(path: url.path, queue: queue)
+        wire(first)
+        if first.start() {
+            self.listener = first
+            return true
+        }
+
+        if Self.isDaemonRunning() {
+            NSLog("[Bar] IPC listen failed — live peer owns \(url.path)")
+            return false
+        }
+
+        // Stale sock file left behind by a dead daemon.
+        try? FileManager.default.removeItem(at: url)
+        let second = UnixSocketListener(path: url.path, queue: queue)
+        wire(second)
+        guard second.start() else {
             NSLog("[Bar] IPC listen failed at \(url.path)")
             return false
         }
-        self.listener = listener
+        self.listener = second
         return true
     }
 

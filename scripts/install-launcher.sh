@@ -59,15 +59,33 @@ if [[ -x /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServ
 fi
 
 mkdir -p "$BIN_DIR"
-# Prefer the stowed shim if present; otherwise write one that points at the app.
-if [[ ! -e "$BIN_DIR/launcher" ]]; then
+# Prefer the stowed shim from packages/launcher. Never create absolute symlinks —
+# stow owns ~/.local/bin/launcher with a relative link; absolute ones abort restow.
+if [[ -L "$BIN_DIR/launcher" ]]; then
+  link_target="$(readlink "$BIN_DIR/launcher" 2>/dev/null || true)"
+  if [[ "$link_target" == /* ]]; then
+    warn "Removing absolute CLI shim at $BIN_DIR/launcher (not stow-owned)"
+    rm -f "$BIN_DIR/launcher"
+  else
+    ok "CLI → $BIN_DIR/launcher (stowed)"
+  fi
+fi
+if [[ -L "$BIN_DIR/launcher" ]]; then
+  : # already reported above
+elif [[ -e "$BIN_DIR/launcher" ]]; then
+  warn "CLI shim exists as a regular file at $BIN_DIR/launcher"
+  warn "Remove it and restow so packages/launcher can own the link:"
+  warn "  rm -f \"$BIN_DIR/launcher\" && ./scripts/restow.sh"
+elif [[ -f "$ROOT/packages/launcher/.local/bin/launcher" ]]; then
+  warn "No CLI shim yet — stow the launcher package (./install.sh or ./scripts/restow.sh)"
+else
   cat >"$BIN_DIR/launcher" <<EOF
 #!/bin/sh
 exec "$EXEC" "\$@"
 EOF
   chmod +x "$BIN_DIR/launcher"
+  ok "CLI → $BIN_DIR/launcher (local fallback shim)"
 fi
-ok "CLI → $BIN_DIR/launcher (stowed or local shim)"
 
 info "Writing LaunchAgent $LABEL"
 mkdir -p "$(dirname "$PLIST_DST")"

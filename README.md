@@ -70,8 +70,10 @@ packages/          # Stow packages (mirror $HOME layout)
   launcher/        # ~/.config/launcher/ + ~/.local/bin/launcher
   bar/             # ~/.local/bin/bar (+ theme-owned ~/.config/bar/)
   calendar/        # ~/.local/bin/calendar-bar
-  starship/ bat/ btop/ gh/ yazi/ ripgrep/ nvim/ duti/
+  bat/ btop/ gh/ yazi/ nvim/ duti/
   sublime/         # ~/Library/Application Support/Sublime Text/
+                   # starship.toml + ripgrep config: brew formulae + theme apply
+                   # (not stowed — see lib/features.sh)
   cursor/          # ~/Library/Application Support/Cursor/User/settings.json
 apps/bar/          # SwiftPM sources for Bar.app (workspace strip)
 apps/launcher/     # SwiftPM sources for the notch Launcher.app

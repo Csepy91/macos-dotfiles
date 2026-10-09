@@ -129,7 +129,11 @@ final class WorkspaceViewModel: ObservableObject {
                 var copy = ws
                 let isActive = ws.rawName == rawName
                 copy.isCurrent = isActive
-                copy.isVisible = isActive
+                // Do not clear isVisible on other spaces — multi-monitor OmniWM and
+                // show_empty:false would flicker until the CLI refresh lands.
+                if isActive {
+                    copy.isVisible = true
+                }
                 if let occupied, occupied.contains(ws.rawName) {
                     copy.windowCount = max(ws.windowCount, 1)
                 }
