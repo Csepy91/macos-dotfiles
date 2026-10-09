@@ -102,9 +102,9 @@ theme apply cinematic-noir
 ```
 
 Palettes ship today: `cinematic-noir`, `obsidian-ice`, `deep-purple-cyan`,
-`black-amber`, `chrome-noir`, `azure-glow`, `cobalt2`. `azure-glow` and
-`cobalt2` are **omarchy themes** (stolen/adapted) — see each palette’s
-`ORIGIN.md`.
+`black-amber`, `chrome-noir`, `azure-glow`, `cobalt2`, `solarpunk-horizons`.
+`azure-glow` and `cobalt2` are **omarchy themes** (stolen/adapted) — see each
+palette’s `ORIGIN.md`.
 Active name is in `~/.config/theme/active` (not committed). Optional
 `palettes/<name>/wallpaper.png` is applied on switch. Shell tools
 `source ~/.config/theme/colors.sh`. Apps (Bar, Launcher, CalendarBar, …) get

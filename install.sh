@@ -124,48 +124,49 @@ interactive_select() {
 
   # Confirm (exit 0) with zero selections must clear the category. Cancel
   # (non-zero) leaves the previous flags alone — do not treat empty as cancel.
-  local status=0
+  # Do not name this `status` — zsh reserves that as a read-only alias for $?.
+  local rc=0
   if (( $+commands[gum] )); then
     info "Select CLI tools (Space toggles, Enter confirms)"
     gum_selected=(${(z)$(gum_selected_args CLI "${cli_keys[@]}")})
     set +e
     sel="$(gum_choose --no-limit --header "CLI tools" "${gum_selected[@]}" "${cli_keys[@]}")"
-    status=$?
+    rc=$?
     set -e
-    (( status == 0 )) && apply_selection CLI "$sel"
+    (( rc == 0 )) && apply_selection CLI "$sel"
 
     info "Select rice components"
     gum_selected=(${(z)$(gum_selected_args RICE "${rice_keys[@]}")})
     set +e
     sel="$(gum_choose --no-limit --header "Rice" "${gum_selected[@]}" "${rice_keys[@]}")"
-    status=$?
+    rc=$?
     set -e
-    (( status == 0 )) && apply_selection RICE "$sel"
+    (( rc == 0 )) && apply_selection RICE "$sel"
 
     info "Select GUI apps"
     gum_selected=(${(z)$(gum_selected_args APPS "${apps_keys[@]}")})
     set +e
     sel="$(gum_choose --no-limit --header "GUI apps" "${gum_selected[@]}" "${apps_keys[@]}")"
-    status=$?
+    rc=$?
     set -e
-    (( status == 0 )) && apply_selection APPS "$sel"
+    (( rc == 0 )) && apply_selection APPS "$sel"
   elif (( $+commands[fzf] )); then
     warn "gum not found — using fzf (TAB to multi-select)"
     set +e
     sel="$(printf '%s\n' "${cli_keys[@]}" | fzf --multi --prompt 'CLI > ')"
-    status=$?
+    rc=$?
     set -e
-    (( status == 0 )) && apply_selection CLI "$sel"
+    (( rc == 0 )) && apply_selection CLI "$sel"
     set +e
     sel="$(printf '%s\n' "${rice_keys[@]}" | fzf --multi --prompt 'Rice > ')"
-    status=$?
+    rc=$?
     set -e
-    (( status == 0 )) && apply_selection RICE "$sel"
+    (( rc == 0 )) && apply_selection RICE "$sel"
     set +e
     sel="$(printf '%s\n' "${apps_keys[@]}" | fzf --multi --prompt 'Apps > ')"
-    status=$?
+    rc=$?
     set -e
-    (( status == 0 )) && apply_selection APPS "$sel"
+    (( rc == 0 )) && apply_selection APPS "$sel"
   else
     warn "Neither gum nor fzf found — keeping defaults."
     info "Tip: brew install gum && re-run ./install.sh"

@@ -17,6 +17,13 @@ enum BarMain {
             return
         }
 
+        // Reload/refresh are daemon-only. Starting NSApp here used to hang
+        // `theme apply` forever when IPC missed a live peer.
+        if flags.reload || flags.refresh {
+            fputs("bar: no daemon running — start Bar first (or omit --reload)\n", stderr)
+            return
+        }
+
         let app = NSApplication.shared
         let initial: IPCCommand? = flags.wantsRemoteAction ? flags.ipcCommand : nil
         let delegate = AppDelegate(initialCommand: initial)

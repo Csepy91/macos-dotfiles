@@ -71,7 +71,9 @@ final class IPCServer {
     func start() -> Bool {
         let url = Self.socketURL
 
-        let wire: (UnixSocketListener) -> Void = { listener in
+        // Weak on the outer closure — an inner-only [weak self] would force an
+        // implicit strong capture here (Swift #ImplicitStrongCapture).
+        let wire: (UnixSocketListener) -> Void = { [weak self] listener in
             listener.onMessage = { [weak self] line in
                 guard let command = IPCCommand.parse(line) else { return }
                 if command == .ping { return }

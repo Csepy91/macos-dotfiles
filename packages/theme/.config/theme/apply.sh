@@ -117,9 +117,15 @@ theme_set_wallpaper() {
   [[ -n "${src}" ]] || return 0
 
   local dest_dir="${HOME}/.config/wallpaper"
-  local dest="${dest_dir}/current.png"
+  # Unique path per palette — macOS caches wallpaper by path, so overwriting
+  # the same current.png often fails to refresh when switching themes.
+  local ext="${src:e}"
+  [[ -n "${ext}" ]] || ext="png"
+  local dest="${dest_dir}/${name}.${ext}"
+  local link="${dest_dir}/current.${ext}"
   mkdir -p "${dest_dir}"
   cp -f "${src}" "${dest}"
+  ln -sfn "${dest}" "${link}"
 
   if /usr/bin/osascript <<EOF
 set img to POSIX file "${dest}"
@@ -134,7 +140,7 @@ EOF
   then
     theme_info "wallpaper → ${dest}"
   else
-    theme_info "wallpaper copied but System Events set failed"
+    theme_info "wallpaper copied but System Events set failed (${dest})"
   fi
 }
 

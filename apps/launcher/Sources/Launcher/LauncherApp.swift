@@ -17,6 +17,12 @@ enum LauncherMain {
             return
         }
 
+        // Reload is daemon-only — don't start a blocking NSApp for `theme apply`.
+        if flags.reload {
+            fputs("launcher: no daemon running — start Launcher first (or omit --reload)\n", stderr)
+            return
+        }
+
         let app = NSApplication.shared
         // When becoming the daemon after a CLI action with no prior instance,
         // apply that action once launch finishes. Bare LaunchAgent start stays hidden.
