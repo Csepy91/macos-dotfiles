@@ -8,6 +8,7 @@ struct WorkspaceBarView: View {
     @ObservedObject var battery: BatteryViewModel
     @ObservedObject var wifi: WiFiViewModel
     @ObservedObject var bluetooth: BluetoothViewModel
+    @ObservedObject var systemStats: SystemStatsViewModel
     @ObservedObject var configManager: ConfigManager
 
     private var theme: ThemeConfig { configManager.config.theme }
@@ -42,6 +43,28 @@ struct WorkspaceBarView: View {
             Spacer(minLength: 0)
 
             HStack(spacing: 2) {
+                SystemStatPill(
+                    symbol: "cpu",
+                    label: systemStats.cpuLabel,
+                    percent: systemStats.cpuPercent,
+                    help: "CPU \(systemStats.cpuLabel)",
+                    theme: theme
+                )
+                SystemStatPill(
+                    symbol: "gauge.with.dots.needle.67percent",
+                    label: systemStats.gpuLabel,
+                    percent: systemStats.gpuPercent,
+                    help: "GPU \(systemStats.gpuLabel)",
+                    theme: theme,
+                    fallbackTitle: "GPU"
+                )
+                SystemStatPill(
+                    symbol: "memorychip",
+                    label: systemStats.memoryLabel,
+                    percent: systemStats.memoryPercent,
+                    help: "Memory \(systemStats.memoryLabel)",
+                    theme: theme
+                )
                 BluetoothButton(bluetooth: bluetooth, theme: theme)
                 OmniWMControlsButton(theme: theme)
                 WiFiButton(wifi: wifi, theme: theme)
@@ -175,6 +198,60 @@ private struct FrontAppPill: View {
             return .custom(theme.fontFamily, size: size).weight(.medium)
         }
         return .system(size: size, weight: .medium, design: .rounded)
+    }
+}
+
+// MARK: - System stats (CPU / GPU / Memory)
+
+private struct SystemStatPill: View {
+    let symbol: String
+    let label: String
+    let percent: Int
+    let help: String
+    let theme: ThemeConfig
+    var fallbackTitle: String? = nil
+
+    var body: some View {
+        Button {
+            BarPopoverCoordinator.dismissAll()
+            SystemActions.openActivityMonitor()
+        } label: {
+            HStack(spacing: 4) {
+                if let fallbackTitle, !Self.symbolExists(symbol) {
+                    Text(fallbackTitle)
+                        .font(labelFont)
+                } else {
+                    Image(systemName: symbol)
+                        .font(.system(size: max(theme.fontSize - 2, 10), weight: .medium))
+                }
+                Text(label)
+                    .font(labelFont)
+                    .monospacedDigit()
+            }
+            .foregroundColor(foreground)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .barPillBackground(theme)
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+        .buttonStyle(BarIconButtonStyle(theme: theme))
+        .help(help)
+    }
+
+    private var foreground: Color {
+        percent >= 85 ? Color(hex: theme.accentColor) : Color(hex: theme.textColor)
+    }
+
+    private var labelFont: Font {
+        let size = theme.fontSize
+        if NSFont(name: theme.fontFamily, size: size) != nil {
+            return .custom(theme.fontFamily, size: size).weight(.medium)
+        }
+        return .system(size: size, weight: .medium, design: .rounded)
+    }
+
+    private static func symbolExists(_ name: String) -> Bool {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil
     }
 }
 

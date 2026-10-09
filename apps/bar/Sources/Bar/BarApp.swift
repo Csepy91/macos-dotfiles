@@ -108,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let battery = BatteryViewModel()
     private let wifi = WiFiViewModel()
     private let bluetooth = BluetoothViewModel()
+    private let systemStats = SystemStatsViewModel()
     private let fullscreenMonitor = FullscreenMonitor()
     private let configManager = ConfigManager.shared
     private var window: TopBarWindow?
@@ -157,6 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         battery.start()
         wifi.start()
         bluetooth.start()
+        systemStats.start()
 
         ensureWindow()
         window?.showBar()
@@ -195,6 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         battery.stop()
         wifi.stop()
         bluetooth.stop()
+        systemStats.stop()
         fullscreenMonitor.stop()
         BarPopoverCoordinator.dismissAll()
         OmniWMControlsController.cleanup()
@@ -236,6 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             battery: battery,
             wifi: wifi,
             bluetooth: bluetooth,
+            systemStats: systemStats,
             configManager: configManager
         )
     }
