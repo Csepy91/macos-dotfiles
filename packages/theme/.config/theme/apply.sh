@@ -266,6 +266,39 @@ ${end}"
   fi
 }
 
+# Install/update the local Dotfiles Cursor theme extension + pin settings.
+theme_apply_cursor() {
+  local cursor_app="/Applications/Cursor.app"
+  local ext_root="${HOME}/.cursor/extensions"
+  local settings="${HOME}/Library/Application Support/Cursor/User/settings.json"
+
+  # Skip quietly when Cursor is not installed (optional brew cask).
+  if [[ ! -d "${cursor_app}" ]] && [[ ! -d "${ext_root}" ]] && [[ ! -f "${settings}" ]]; then
+    theme_info "skip Cursor — not installed"
+    return 0
+  fi
+
+  local theme_tmpl="${TEMPLATES_DIR}/cursor-color-theme.json"
+  local pkg_tmpl="${TEMPLATES_DIR}/cursor-theme-package.json"
+  [[ -f "${theme_tmpl}" ]] || theme_die "missing template: cursor-color-theme.json"
+  [[ -f "${pkg_tmpl}" ]] || theme_die "missing template: cursor-theme-package.json"
+
+  local ext_dir="${ext_root}/dotfiles.theme-0.0.1"
+  mkdir -p "${ext_dir}/themes"
+
+  local rendered_theme rendered_pkg
+  rendered_theme="$(theme_render "${theme_tmpl}")"
+  rendered_pkg="$(theme_render "${pkg_tmpl}")"
+  theme_write "${ext_dir}/themes/Dotfiles-color-theme.json" "${rendered_theme}"
+  theme_write "${ext_dir}/package.json" "${rendered_pkg}"
+  theme_info "wrote Cursor theme → ${ext_dir}"
+
+  local patcher="${THEME_DIR}/patch_cursor_theme.py"
+  [[ -f "${patcher}" ]] || theme_die "missing ${patcher}"
+  /usr/bin/env python3 "${patcher}" "${ext_root}" "${settings}"
+  theme_info "Cursor: reload window (Cmd+Shift+P → Developer: Reload Window) to pick up Dotfiles"
+}
+
 # Write palette-driven userChrome/userContent into every Zen profile.
 theme_apply_zen() {
   local -a profiles
@@ -351,11 +384,14 @@ theme_apply() {
   # Zen Browser userChrome / userContent (profile chrome/).
   theme_apply_zen
 
+  # Cursor local theme extension + settings pin (Dotfiles).
+  theme_apply_cursor
+
   theme_info "active → ${name}"
 
   theme_set_wallpaper "${name}"
   theme_reload
-  theme_info "reload hooks finished (new shells pick up cli.sh; Ghostty/Zen may need a reload)"
+  theme_info "reload hooks finished (new shells pick up cli.sh; Ghostty/Zen/Cursor may need a reload)"
 }
 
 cmd="${1:-}"

@@ -1,0 +1,15 @@
+{
+  "workbench.colorTheme": "Dotfiles",
+  "window.autoDetectColorScheme": false,
+  "editor.fontFamily": "JetBrainsMono Nerd Font, JetBrains Mono, Menlo, monospace",
+  "editor.fontSize": 14,
+  "editor.lineHeight": 22,
+  "editor.fontLigatures": true,
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.minimap.enabled": false,
+  "editor.renderWhitespace": "selection",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "cursor.composer.queueMessageDefaultBehavior": "steer",
+  "cursor.composer.usageSummaryDisplay": "always"
+}

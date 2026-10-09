@@ -300,7 +300,21 @@ stow_packages() {
 
 # --- Post-stow CLI setup -----------------------------------------------------
 
+# Returns 0 on yes, 1 on no. Safe under `set -e` when used in `if confirm …; then`.
+confirm() {
+  local prompt="$1"
+  if (( $+commands[gum] )); then
+    gum_run confirm --default=false "$prompt"
+    return $?
+  fi
+  local reply
+  print -n "$prompt [y/N]: "
+  read -r reply || true
+  [[ "$reply" == [Yy]* ]]
+}
+
 # Write name/email to ~/.gitconfig.local (included by stowed ~/.gitconfig).
+# Optional: user can skip; --yes never prompts.
 configure_git_identity() {
   if ! $CLI_git; then
     return 0
@@ -319,6 +333,19 @@ configure_git_identity() {
   email="$(git config --file "$HOME/.gitconfig.local" user.email 2>/dev/null || true)"
   [[ -z "$name" ]] && name="$(git config user.name 2>/dev/null || true)"
   [[ -z "$email" ]] && email="$(git config user.email 2>/dev/null || true)"
+
+  local prompt="Configure git user.name and user.email?"
+  if [[ -n "$name" && -n "$email" ]]; then
+    prompt="Update git identity ($name <$email>)?"
+  fi
+  if ! confirm "$prompt"; then
+    if [[ -n "$name" && -n "$email" ]]; then
+      ok "Keeping existing git identity"
+    else
+      info "Skipping git identity — set later in ~/.gitconfig.local"
+    fi
+    return 0
+  fi
 
   info "Git identity (stored in ~/.gitconfig.local, not in the repo)"
   if (( $+commands[gum] )); then
@@ -344,6 +371,7 @@ configure_git_identity() {
   ok "git identity: $name <$email>"
 }
 
+# Optional: skip if already logged in, or if the user declines. --yes never prompts.
 ensure_gh_auth() {
   if ! $CLI_gh; then
     return 0
@@ -352,17 +380,17 @@ ensure_gh_auth() {
     warn "gh selected but not on PATH — skip auth"
     return 0
   fi
+  if gh auth status &>/dev/null; then
+    ok "gh already authenticated"
+    return 0
+  fi
   if $NONINTERACTIVE; then
-    if gh auth status &>/dev/null; then
-      ok "gh already authenticated (skipped login in --yes mode)"
-    else
-      warn "Skipping gh auth login (--yes) — run: gh auth login"
-    fi
+    warn "Skipping gh auth login (--yes) — run: gh auth login"
     return 0
   fi
 
-  if gh auth status &>/dev/null; then
-    ok "gh already authenticated"
+  if ! confirm "Authenticate with GitHub CLI (gh auth login)?"; then
+    info "Skipping gh auth — run: gh auth login"
     return 0
   fi
 
@@ -635,7 +663,8 @@ Useful commands:
   ./scripts/install-calendar-bar.sh  # rebuild ~/Applications/CalendarBar.app
   ./scripts/install-bar.sh        # rebuild ~/Applications/Bar.app (phase 1)
   ./scripts/apply-duti.sh         # re-apply Sublime/IINA default handlers
-  gh auth login                   # if skipped during --yes
+  gh auth login                   # if skipped during install / --yes
+  # git identity: edit ~/.gitconfig.local  (or re-run ./install.sh)
   ./install.sh          # re-run interactive feature selection
 
 EOF

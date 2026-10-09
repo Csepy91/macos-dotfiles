@@ -163,5 +163,6 @@ features_stow_packages() {
   $RICE_calendar && out+=(calendar)
   $RICE_bar && out+=(bar)
   $APPS_sublimeText && out+=(sublime)
+  $APPS_cursor && out+=(cursor)
   print -r -- "${out[@]}"
 }

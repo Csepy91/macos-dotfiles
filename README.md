@@ -14,7 +14,7 @@ Apple Silicon macOS rice built on **Homebrew** (all packages) and **GNU Stow** (
 | Terminal | Ghostty |
 | Shell | zsh + starship + plugins |
 | Theme | `theme apply` (palettes under `packages/theme/`) |
-| Editor | Sublime Text |
+| Editor | Sublime Text + Cursor (palette theme) |
 | Launcher | Custom notch Launcher (`Alt+R` / `Alt+Shift+R`) |
 | Packages | Homebrew |
 | Dotfiles | GNU Stow |
@@ -72,6 +72,7 @@ packages/          # Stow packages (mirror $HOME layout)
   calendar/        # ~/.local/bin/calendar-bar
   starship/ bat/ btop/ gh/ yazi/ ripgrep/ nvim/ duti/
   sublime/         # ~/Library/Application Support/Sublime Text/
+  cursor/          # ~/Library/Application Support/Cursor/User/settings.json
 apps/bar/          # SwiftPM sources for Bar.app (workspace strip)
 apps/launcher/     # SwiftPM sources for the notch Launcher.app
 apps/calendar-bar/ # SwiftPM sources for CalendarBar.app
@@ -88,7 +89,8 @@ Feature flags live in each host’s `features.conf`. Stow package selection and 
 
 Palettes are token files under `packages/theme/.config/theme/palettes/<name>/colors.sh`.
 Templates live in `templates/`. Stow links the theme engine; **`theme apply`**
-writes generated color files as plain files under `~/.config` (and Sublime).
+writes generated color files as plain files under `~/.config` (plus Sublime /
+Cursor).
 
 ```sh
 theme list                 # available palettes
@@ -105,7 +107,8 @@ Active name is in `~/.config/theme/active` (not committed). Optional
 `palettes/<name>/wallpaper.png` is applied on switch. Shell tools
 `source ~/.config/theme/colors.sh`. Apps (Bar, Launcher, CalendarBar, …) get
 JSON from `theme apply`; OmniWM border/overview colors are patched in
-`settings.toml`. Stable names: `active`, `Dotfiles`.
+`settings.toml`. Cursor gets a local `Dotfiles` theme extension under
+`~/.cursor/extensions/dotfiles.theme-0.0.1/`. Stable names: `active`, `Dotfiles`.
 
 Token roles (values depend on the active palette):
 
@@ -150,6 +153,8 @@ exec zsh
 # Ghostty — reopen window / Cmd+Shift+, reload if configured
 
 # Sublime Text — reopen if the color scheme file changed
+
+# Cursor — Developer: Reload Window (Chat/Agents UI may stay on built-in themes)
 ```
 
 OmniWM: `theme apply` enables built-in borders, patches color tables in

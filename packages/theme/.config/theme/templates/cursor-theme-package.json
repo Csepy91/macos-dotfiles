@@ -1,0 +1,20 @@
+{
+  "name": "dotfiles-theme",
+  "displayName": "Dotfiles",
+  "description": "Palette-driven Cursor/VS Code theme from macOS rice (theme apply)",
+  "version": "0.0.1",
+  "publisher": "dotfiles",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Themes"],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Dotfiles",
+        "uiTheme": "vs-dark",
+        "path": "./themes/Dotfiles-color-theme.json"
+      }
+    ]
+  }
+}
