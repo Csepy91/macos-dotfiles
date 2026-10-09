@@ -11,6 +11,7 @@ final class SystemStatsViewModel: ObservableObject {
 
     private var timer: Timer?
     private var previousCPU: host_cpu_load_info?
+    private var sampleGeneration: UInt64 = 0
 
     var cpuLabel: String { "\(cpuPercent)%" }
     var gpuLabel: String { "\(gpuPercent)%" }
@@ -19,7 +20,7 @@ final class SystemStatsViewModel: ObservableObject {
     func start() {
         stop()
         refresh()
-        // 5s is enough for a status pill and keeps IOKit / host_statistics off the hot path.
+        // 5s is enough for a status pill; sampling runs off the main thread.
         let timer = Timer(timeInterval: 5.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.refresh()
@@ -33,23 +34,33 @@ final class SystemStatsViewModel: ObservableObject {
     func stop() {
         timer?.invalidate()
         timer = nil
+        sampleGeneration &+= 1
         previousCPU = nil
     }
 
     func refresh() {
-        if let cpu = Self.sampleCPU(previous: previousCPU) {
-            previousCPU = cpu.load
-            if cpuPercent != cpu.percent {
-                cpuPercent = cpu.percent
+        sampleGeneration &+= 1
+        let generation = sampleGeneration
+        let previous = previousCPU
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let cpu = Self.sampleCPU(previous: previous)
+            let mem = Self.sampleMemoryPercent()
+            let gpu = Self.sampleGPUPercent()
+            DispatchQueue.main.async {
+                guard let self, generation == self.sampleGeneration else { return }
+                if let cpu {
+                    self.previousCPU = cpu.load
+                    if self.cpuPercent != cpu.percent {
+                        self.cpuPercent = cpu.percent
+                    }
+                }
+                if self.memoryPercent != mem {
+                    self.memoryPercent = mem
+                }
+                if self.gpuPercent != gpu {
+                    self.gpuPercent = gpu
+                }
             }
-        }
-        let mem = Self.sampleMemoryPercent()
-        if memoryPercent != mem {
-            memoryPercent = mem
-        }
-        let gpu = Self.sampleGPUPercent()
-        if gpuPercent != gpu {
-            gpuPercent = gpu
         }
     }
 
@@ -84,9 +95,11 @@ final class SystemStatsViewModel: ObservableObject {
         var count = mach_msg_type_number_t(
             MemoryLayout<host_cpu_load_info>.stride / MemoryLayout<integer_t>.stride
         )
-        let result = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count)
+        let result = withHostPort { host in
+            withUnsafeMutablePointer(to: &info) {
+                $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                    host_statistics(host, HOST_CPU_LOAD_INFO, $0, &count)
+                }
             }
         }
         guard result == KERN_SUCCESS else { return nil }
@@ -107,14 +120,15 @@ final class SystemStatsViewModel: ObservableObject {
         let page = UInt64(vm_kernel_page_size)
         // Activity Monitor–style “used”: active+wired+compressed (+inactive/speculative
         // adjustments matching common macOS status tools).
-        let usedPages =
+        let positive =
             UInt64(vm.active_count)
             + UInt64(vm.inactive_count)
             + UInt64(vm.wire_count)
             + UInt64(vm.speculative_count)
             + UInt64(vm.compressor_page_count)
-            - UInt64(vm.purgeable_count)
-            - UInt64(vm.external_page_count)
+        let subtract = UInt64(vm.purgeable_count) + UInt64(vm.external_page_count)
+        // Saturating subtract — UInt64 wrap would report ~100% used incorrectly.
+        let usedPages = positive > subtract ? positive - subtract : 0
         let used = page * usedPages
         let percent = Int((Double(used) / Double(total) * 100).rounded())
         return min(max(percent, 0), 100)
@@ -125,13 +139,22 @@ final class SystemStatsViewModel: ObservableObject {
         var count = mach_msg_type_number_t(
             MemoryLayout<vm_statistics64>.stride / MemoryLayout<integer_t>.stride
         )
-        let result = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
+        let result = withHostPort { host in
+            withUnsafeMutablePointer(to: &info) {
+                $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                    host_statistics64(host, HOST_VM_INFO64, $0, &count)
+                }
             }
         }
         guard result == KERN_SUCCESS else { return nil }
         return info
+    }
+
+    /// `mach_host_self()` returns a send right that must be deallocated.
+    private static func withHostPort<T>(_ body: (mach_port_t) -> T) -> T {
+        let host = mach_host_self()
+        defer { mach_port_deallocate(mach_task_self_, host) }
+        return body(host)
     }
 
     // MARK: - GPU

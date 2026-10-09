@@ -44,14 +44,16 @@ enum SystemActions {
     }
 
     static func openActivityMonitor() {
-        let path = "/System/Applications/Utilities/Activity Monitor.app"
-        if FileManager.default.fileExists(atPath: path) {
-            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+        let config = NSWorkspace.OpenConfiguration()
+        // Prefer bundle-id lookup — `open(fileURL)` can reveal the .app package in Finder.
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.ActivityMonitor") {
+            NSWorkspace.shared.openApplication(at: url, configuration: config)
             return
         }
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.ActivityMonitor") {
-            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
-        }
+        let path = "/System/Applications/Utilities/Activity Monitor.app"
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        NSWorkspace.shared.openApplication(at: url, configuration: config)
     }
 
     static func openAppStore() {
