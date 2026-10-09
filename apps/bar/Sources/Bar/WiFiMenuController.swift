@@ -17,11 +17,14 @@ final class WiFiMenuController: NSObject, ObservableObject, CLLocationManagerDel
 
     private var panel: KeyableWiFiPanel?
     private var clickMonitor: Any?
+    private var localClickMonitor: Any?
     private var keyMonitor: Any?
     private var localKeyMonitor: Any?
     private var theme = ThemeConfig.catppuccinMacchiato
     private let locationManager = CLLocationManager()
     private var pendingScanAfterAuth = false
+    /// Local mouseDown dismisses before Button mouseUp — suppress the reopen.
+    private var suppressPresentUntil: Date?
 
     private override init() {
         super.init()
@@ -29,6 +32,10 @@ final class WiFiMenuController: NSObject, ObservableObject, CLLocationManagerDel
     }
 
     func toggle(relativeTo buttonFrameInScreen: NSRect, theme: ThemeConfig) {
+        if let until = suppressPresentUntil, Date() < until {
+            suppressPresentUntil = nil
+            return
+        }
         if isPresented {
             dismiss()
         } else {
@@ -101,7 +108,7 @@ final class WiFiMenuController: NSObject, ObservableObject, CLLocationManagerDel
     // MARK: - Present
 
     private func present(relativeTo buttonFrameInScreen: NSRect, theme: ThemeConfig) {
-        dismiss()
+        BarPopoverCoordinator.willPresent()
         self.theme = theme
         hoveredItemID = nil
         reloadStatus()
@@ -272,6 +279,17 @@ final class WiFiMenuController: NSObject, ObservableObject, CLLocationManagerDel
                 }
             }
         }
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            Task { @MainActor in
+                guard let self, self.isPresented, let panel = self.panel else { return }
+                let screenPoint = Self.screenLocation(of: event)
+                if !panel.frame.contains(screenPoint) {
+                    self.suppressPresentUntil = Date().addingTimeInterval(0.35)
+                    self.dismiss()
+                }
+            }
+            return event
+        }
 
         let handleEscape: (NSEvent) -> Bool = { [weak self] event in
             guard event.keyCode == 53 else { return false }
@@ -293,6 +311,10 @@ final class WiFiMenuController: NSObject, ObservableObject, CLLocationManagerDel
         if let clickMonitor {
             NSEvent.removeMonitor(clickMonitor)
             self.clickMonitor = nil
+        }
+        if let localClickMonitor {
+            NSEvent.removeMonitor(localClickMonitor)
+            self.localClickMonitor = nil
         }
         if let keyMonitor {
             NSEvent.removeMonitor(keyMonitor)

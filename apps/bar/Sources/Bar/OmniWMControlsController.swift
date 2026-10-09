@@ -62,12 +62,18 @@ enum OmniWMControlsController {
     // MARK: - OmniWM AX
 
     private static func ensureOmniWMRunning() {
-        if NSWorkspace.shared.runningApplications.contains(where: { $0.bundleIdentifier == omniBundleID }) {
-            return
-        }
+        if isOmniWMRunning() { return }
         let url = URL(fileURLWithPath: "/Applications/OmniWM.app")
         NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) { _, _ in }
-        usleep(400_000)
+        // Yield to the run loop instead of hard-blocking the main thread with usleep.
+        for _ in 0..<12 {
+            if isOmniWMRunning() { return }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+    }
+
+    private static func isOmniWMRunning() -> Bool {
+        NSWorkspace.shared.runningApplications.contains(where: { $0.bundleIdentifier == omniBundleID })
     }
 
     private static func omniAppElement() -> AXUIElement? {
@@ -146,12 +152,16 @@ enum OmniWMControlsController {
         let item = DispatchWorkItem {
             guard openedByUs else { return }
             if findControlsPanel(ax) == nil {
-                // Dismissed outside Bar (no local mouseDown) — allow next cog click to open.
-                if suppressOpenUntil == nil || Date() >= (suppressOpenUntil ?? .distantPast) {
-                    openedByUs = false
-                    removeMouseDownGuard()
-                    stopDismissWatcher()
+                // Panel gone. If suppress is still active (local mouseDown just closed it),
+                // keep polling until suppress expires so openedByUs / the mouse guard clear.
+                if let until = suppressOpenUntil, Date() < until {
+                    startDismissWatcher(ax: ax)
+                    return
                 }
+                openedByUs = false
+                suppressOpenUntil = nil
+                removeMouseDownGuard()
+                stopDismissWatcher()
                 return
             }
             startDismissWatcher(ax: ax)

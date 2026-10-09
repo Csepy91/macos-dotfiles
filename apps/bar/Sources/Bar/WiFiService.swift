@@ -37,20 +37,24 @@ enum WiFiService {
 
     static func status() -> Status {
         coreWLANLock.lock()
-        defer { coreWLANLock.unlock() }
-
         let ifaceName = hardwareInterfaceNameUnlocked()
         guard let iface = CWWiFiClient.shared().interface() else {
+            coreWLANLock.unlock()
             return Status(powerOn: false, connected: false, ssid: nil, rssi: nil, interfaceName: ifaceName)
         }
         let power = iface.powerOn()
         guard power else {
+            coreWLANLock.unlock()
             return Status(powerOn: false, connected: false, ssid: nil, rssi: nil, interfaceName: ifaceName)
         }
 
         // CoreWLAN SSID is often redacted without Location; fall back to ipconfig.
-        let ssid = iface.ssid() ?? currentSSID(interface: ifaceName)
+        let cwSSID = iface.ssid()
         let rssiValue = iface.rssiValue()
+        coreWLANLock.unlock()
+
+        // Run Process outside the CoreWLAN lock so a menu scan cannot stall status polls.
+        let ssid = cwSSID ?? currentSSID(interface: ifaceName)
         // Associated interfaces report negative RSSI; 0 usually means idle/disconnected.
         let hasSignal = rssiValue < 0
         let connected = ssid != nil || hasSignal
