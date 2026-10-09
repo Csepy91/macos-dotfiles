@@ -294,6 +294,17 @@ theme_apply_cursor() {
   theme_write "${ext_dir}/package.json" "${rendered_pkg}"
   theme_info "wrote Cursor theme → ${ext_dir}"
 
+  # settings.json is not stowed (see packages/cursor/.stow-local-ignore). Seed once
+  # from the package when missing so first installs get rice editor defaults.
+  if [[ ! -e "${settings}" ]]; then
+    local seed="${THEME_DIR:A:h:h:h}/cursor/Library/Application Support/Cursor/User/settings.json"
+    if [[ -f "${seed}" ]]; then
+      mkdir -p "${settings:h}"
+      cp -f "${seed}" "${settings}"
+      theme_info "seeded Cursor settings → ${settings}"
+    fi
+  fi
+
   local patcher="${THEME_DIR}/patch_cursor_theme.py"
   [[ -f "${patcher}" ]] || theme_die "missing ${patcher}"
   # Soft-fail: JSONC/settings quirks must not abort the rest of theme apply.

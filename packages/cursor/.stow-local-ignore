@@ -1,0 +1,4 @@
+# settings.json is materialized by theme apply (Cursor theme pin). Never stow
+# it — restow would conflict with the theme-owned plain file under
+# ~/Library/Application Support/Cursor/User/.
+Library/Application Support/Cursor/User/settings\.json

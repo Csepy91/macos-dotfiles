@@ -111,8 +111,20 @@ final class WiFiMenuController: NSObject, ObservableObject, CLLocationManagerDel
         BarPopoverCoordinator.willPresent()
         self.theme = theme
         hoveredItemID = nil
-        reloadStatus()
+        // Status (CoreWLAN / ipconfig) off-main, then show + scan.
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let status = WiFiService.status()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.powerOn = status.powerOn
+                self.currentSSID = status.ssid
+                self.showPanel(relativeTo: buttonFrameInScreen)
+                self.beginScan()
+            }
+        }
+    }
 
+    private func showPanel(relativeTo buttonFrameInScreen: NSRect) {
         let root = WiFiMenuView(controller: self, theme: theme)
         let hosting = NonVibrantWiFiHostingView(rootView: root)
         let size = preferredSize()
@@ -150,7 +162,6 @@ final class WiFiMenuController: NSObject, ObservableObject, CLLocationManagerDel
         self.panel = panel
         isPresented = true
         installMonitors()
-        beginScan()
     }
 
     private func preferredSize() -> NSSize {

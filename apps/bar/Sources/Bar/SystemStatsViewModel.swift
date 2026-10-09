@@ -12,6 +12,8 @@ final class SystemStatsViewModel: ObservableObject {
     private var timer: Timer?
     private var previousCPU: host_cpu_load_info?
     private var sampleGeneration: UInt64 = 0
+    /// Coalesce overlapping samples — GPU IORegistry walks can exceed the 5s period.
+    private var sampleInFlight = false
 
     var cpuLabel: String { "\(cpuPercent)%" }
     var gpuLabel: String { "\(gpuPercent)%" }
@@ -35,10 +37,13 @@ final class SystemStatsViewModel: ObservableObject {
         timer?.invalidate()
         timer = nil
         sampleGeneration &+= 1
+        sampleInFlight = false
         previousCPU = nil
     }
 
     func refresh() {
+        guard !sampleInFlight else { return }
+        sampleInFlight = true
         sampleGeneration &+= 1
         let generation = sampleGeneration
         let previous = previousCPU
@@ -47,7 +52,9 @@ final class SystemStatsViewModel: ObservableObject {
             let mem = Self.sampleMemoryPercent()
             let gpu = Self.sampleGPUPercent()
             DispatchQueue.main.async {
-                guard let self, generation == self.sampleGeneration else { return }
+                guard let self else { return }
+                self.sampleInFlight = false
+                guard generation == self.sampleGeneration else { return }
                 if let cpu {
                     self.previousCPU = cpu.load
                     if self.cpuPercent != cpu.percent {
