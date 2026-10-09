@@ -14,12 +14,19 @@ final class AppleMenuController: ObservableObject {
     private var flagsMonitor: Any?
     private var localFlagsMonitor: Any?
     private var clickMonitor: Any?
+    private var localClickMonitor: Any?
     private var keyMonitor: Any?
     private var localKeyMonitor: Any?
+    /// Local mouseDown dismisses before Button mouseUp — suppress the reopen.
+    private var suppressPresentUntil: Date?
 
     private init() {}
 
     func toggle(relativeTo buttonFrameInScreen: NSRect, theme: ThemeConfig) {
+        if let until = suppressPresentUntil, Date() < until {
+            suppressPresentUntil = nil
+            return
+        }
         if isPresented {
             dismiss()
         } else {
@@ -37,7 +44,7 @@ final class AppleMenuController: ObservableObject {
     }
 
     private func present(relativeTo buttonFrameInScreen: NSRect, theme: ThemeConfig) {
-        dismiss()
+        BarPopoverCoordinator.willPresent()
         optionHeld = NSEvent.modifierFlags.contains(.option)
         hoveredItemID = nil
 
@@ -100,6 +107,19 @@ final class AppleMenuController: ObservableObject {
                 }
             }
         }
+        // Global misses same-app clicks (other bar buttons). Local covers those, with
+        // suppress so the originating Button's mouseUp does not immediately reopen.
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            Task { @MainActor in
+                guard let self, self.isPresented, let panel = self.panel else { return }
+                let screenPoint = Self.screenLocation(of: event)
+                if !panel.frame.contains(screenPoint) {
+                    self.suppressPresentUntil = Date().addingTimeInterval(0.35)
+                    self.dismiss()
+                }
+            }
+            return event
+        }
 
         // Esc dismisses — local swallows the key when the panel is key; global covers the rest.
         let handleEscape: (NSEvent) -> Bool = { [weak self] event in
@@ -130,6 +150,10 @@ final class AppleMenuController: ObservableObject {
         if let clickMonitor {
             NSEvent.removeMonitor(clickMonitor)
             self.clickMonitor = nil
+        }
+        if let localClickMonitor {
+            NSEvent.removeMonitor(localClickMonitor)
+            self.localClickMonitor = nil
         }
         if let keyMonitor {
             NSEvent.removeMonitor(keyMonitor)

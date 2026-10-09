@@ -13,6 +13,7 @@ final class WiFiViewModel: ObservableObject {
     private var timer: Timer?
     private var interfaceName = "en0"
     private var prevSample: (t: TimeInterval, rx: UInt64, tx: UInt64)?
+    private var sampleGeneration: UInt64 = 0
 
     var symbolName: String {
         guard powerOn else { return "wifi.slash" }
@@ -45,6 +46,7 @@ final class WiFiViewModel: ObservableObject {
     func stop() {
         timer?.invalidate()
         timer = nil
+        sampleGeneration &+= 1
         prevSample = nil
     }
 
@@ -53,23 +55,41 @@ final class WiFiViewModel: ObservableObject {
     }
 
     private func tick() {
-        let status = WiFiService.status()
+        sampleGeneration &+= 1
+        let generation = sampleGeneration
+        let ifaceHint = interfaceName
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let status = WiFiService.status()
+            let bytes: (rx: UInt64, tx: UInt64)? = {
+                guard status.powerOn, status.connected else { return nil }
+                return WiFiService.linkBytes(interface: status.interfaceName.isEmpty ? ifaceHint : status.interfaceName)
+            }()
+            let now = ProcessInfo.processInfo.systemUptime
+            DispatchQueue.main.async {
+                guard let self, generation == self.sampleGeneration else { return }
+                self.apply(status: status, bytes: bytes, now: now)
+            }
+        }
+    }
+
+    private func apply(
+        status: WiFiService.Status,
+        bytes: (rx: UInt64, tx: UInt64)?,
+        now: TimeInterval
+    ) {
         interfaceName = status.interfaceName
         powerOn = status.powerOn
         connected = status.connected
         ssid = status.ssid
         rssi = status.rssi
 
-        guard status.powerOn, status.connected,
-              let bytes = WiFiService.linkBytes(interface: interfaceName)
-        else {
+        guard status.powerOn, status.connected, let bytes else {
             downMbps = 0
             upMbps = 0
             prevSample = nil
             return
         }
 
-        let now = ProcessInfo.processInfo.systemUptime
         if let prev = prevSample {
             let dt = now - prev.t
             if dt >= 0.4 {

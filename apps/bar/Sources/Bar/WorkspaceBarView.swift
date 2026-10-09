@@ -22,6 +22,7 @@ struct WorkspaceBarView: View {
                     .padding(.trailing, 2)
 
                 MenuButton(theme: theme) {
+                    BarPopoverCoordinator.dismissAll()
                     viewModel.openOmniWMMenu()
                 }
                 .padding(.trailing, 6)
@@ -322,6 +323,7 @@ private struct ClockButton: View {
 
     var body: some View {
         Button {
+            BarPopoverCoordinator.dismissAll()
             CalendarBarClient.toggle(anchor: ButtonScreenFrames.clock.rect)
         } label: {
             Text(time)
@@ -407,6 +409,7 @@ private struct OmniWMControlsButton: View {
 
     var body: some View {
         Button {
+            BarPopoverCoordinator.dismissAll()
             OmniWMControlsController.toggle()
         } label: {
             Image(systemName: "gearshape")

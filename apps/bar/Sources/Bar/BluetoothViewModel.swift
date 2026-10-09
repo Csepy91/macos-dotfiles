@@ -7,6 +7,7 @@ final class BluetoothViewModel: ObservableObject {
     @Published private(set) var connectedDevices: [BluetoothService.Device] = []
 
     private var timer: Timer?
+    private var sampleGeneration: UInt64 = 0
 
     var symbolName: String {
         powerOn ? "bluetooth" : "bluetooth.slash"
@@ -43,15 +44,23 @@ final class BluetoothViewModel: ObservableObject {
     func stop() {
         timer?.invalidate()
         timer = nil
+        sampleGeneration &+= 1
     }
 
     func refresh() {
-        let status = BluetoothService.status()
-        if powerOn != status.powerOn {
-            powerOn = status.powerOn
-        }
-        if connectedDevices != status.connected {
-            connectedDevices = status.connected
+        sampleGeneration &+= 1
+        let generation = sampleGeneration
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let status = BluetoothService.status()
+            DispatchQueue.main.async {
+                guard let self, generation == self.sampleGeneration else { return }
+                if self.powerOn != status.powerOn {
+                    self.powerOn = status.powerOn
+                }
+                if self.connectedDevices != status.connected {
+                    self.connectedDevices = status.connected
+                }
+            }
         }
     }
 

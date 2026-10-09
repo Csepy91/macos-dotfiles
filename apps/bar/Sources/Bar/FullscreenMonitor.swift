@@ -104,7 +104,11 @@ final class FullscreenMonitor: ObservableObject {
 
     private func evaluateFullscreen() {
         guard isRunning else { return }
-        let next = Self.isNativeFullscreenSpace()
+        guard let next = Self.isNativeFullscreenSpace() else {
+            // Inconclusive (CGWindowList copy failed) — keep prior fullscreen state.
+            if isFullscreen { updateRevealFromMouse() }
+            return
+        }
         guard next != isFullscreen else {
             if next { updateRevealFromMouse() }
             return
@@ -202,14 +206,16 @@ final class FullscreenMonitor: ObservableObject {
 
     // MARK: - Detection
 
-    nonisolated static func isNativeFullscreenSpace() -> Bool {
+    /// `nil` means inconclusive (window-list copy failed) — keep previous state.
+    nonisolated static func isNativeFullscreenSpace() -> Bool? {
         if let ax = frontmostWindowIsFullscreen() {
             return ax
         }
+        // Frontmost is Bar, or AX miss: infer from system menu-bar strip presence.
         if let hasMenuStrip = hasSystemMenuBarStrip() {
             return !hasMenuStrip
         }
-        return false
+        return nil
     }
 
     nonisolated static func frontmostWindowIsFullscreen() -> Bool? {
@@ -256,12 +262,18 @@ final class FullscreenMonitor: ObservableObject {
 
         for window in info {
             guard (window[kCGWindowOwnerName as String] as? String) == "Window Server" else { continue }
-            let layer = window[kCGWindowLayer as String] as? Int ?? 0
+            let layer = (window[kCGWindowLayer as String] as? NSNumber)?.intValue
+                ?? (window[kCGWindowLayer as String] as? Int)
+                ?? 0
             guard layer > 0 else { continue }
+
+            // CGWindow bounds are NSDictionary/NSNumber — `as? CGFloat` often fails and
+            // made every candidate skip, so the fallback always reported "no strip"
+            // (i.e. fullscreen) and wrongly hid the bar.
             guard let bounds = window[kCGWindowBounds as String] as? [String: Any],
-                  let height = bounds["Height"] as? CGFloat
+                  let rect = CGRect(dictionaryRepresentation: bounds as CFDictionary)
             else { continue }
-            if height >= 16, height <= 48 {
+            if rect.height >= 16, rect.height <= 48 {
                 return true
             }
         }

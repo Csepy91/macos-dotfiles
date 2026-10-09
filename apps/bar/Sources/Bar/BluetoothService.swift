@@ -66,19 +66,33 @@ enum BluetoothService {
 
     @discardableResult
     static func connect(address: String) -> Bool {
+        // Resolve under the lock, but release before openConnection — it can block
+        // for seconds and would stall the main-thread status poll that shares `lock`.
         lock.lock()
-        defer { lock.unlock() }
-        guard let device = IOBluetoothDevice(addressString: address) else { return false }
-        if device.isConnected() { return true }
+        guard let device = IOBluetoothDevice(addressString: address) else {
+            lock.unlock()
+            return false
+        }
+        if device.isConnected() {
+            lock.unlock()
+            return true
+        }
+        lock.unlock()
         return device.openConnection() == kIOReturnSuccess
     }
 
     @discardableResult
     static func disconnect(address: String) -> Bool {
         lock.lock()
-        defer { lock.unlock() }
-        guard let device = IOBluetoothDevice(addressString: address) else { return false }
-        guard device.isConnected() else { return true }
+        guard let device = IOBluetoothDevice(addressString: address) else {
+            lock.unlock()
+            return false
+        }
+        if !device.isConnected() {
+            lock.unlock()
+            return true
+        }
+        lock.unlock()
         return device.closeConnection() == kIOReturnSuccess
     }
 }
