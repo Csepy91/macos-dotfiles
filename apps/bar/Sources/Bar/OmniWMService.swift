@@ -155,20 +155,6 @@ final class OmniWMService {
         }
     }
 
-    /// Opens OmniWM's anywhere dropdown menu (same as `openMenuAnywhere` hotkey).
-    func openMenuAnywhere() {
-        let path = ctlPath
-        DispatchQueue.global(qos: .userInitiated).async {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: path)
-            process.arguments = ["command", "open-menu-anywhere"]
-            process.standardOutput = Pipe()
-            process.standardError = Pipe()
-            try? process.run()
-            process.waitUntilExit()
-        }
-    }
-
     // MARK: - Query
 
     nonisolated static func queryWorkspacesSync(ctlPath: String) -> [WorkspaceInfo]? {

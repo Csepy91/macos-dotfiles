@@ -22,10 +22,7 @@ struct WorkspaceBarView: View {
                 AppleMenuButton(theme: theme)
                     .padding(.trailing, 2)
 
-                MenuButton(theme: theme) {
-                    BarPopoverCoordinator.dismissAll()
-                    viewModel.openOmniWMMenu()
-                }
+                MenuButton(theme: theme, preferredBundleID: frontApp.bundleID)
                 .padding(.trailing, 6)
 
                 ForEach(viewModel.workspaces) { workspace in
@@ -459,14 +456,19 @@ private struct AppleMenuButton: View {
     }
 }
 
-// MARK: - OmniWM menu (anywhere)
+// MARK: - Front-app menu (File / Edit / … — no Apple menu)
 
 private struct MenuButton: View {
     let theme: ThemeConfig
-    let action: () -> Void
+    let preferredBundleID: String?
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            AppMenuController.shared.present(
+                relativeTo: ButtonScreenFrames.appMenu.rect,
+                preferredBundleID: preferredBundleID
+            )
+        } label: {
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: max(theme.fontSize, 12), weight: .medium))
                 .foregroundColor(Color(hex: theme.textColor))
@@ -475,7 +477,12 @@ private struct MenuButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(BarIconButtonStyle(theme: theme))
-        .help("Menu")
+        .help("App menu")
+        .background(
+            ScreenFrameReader { frame in
+                ButtonScreenFrames.appMenu.rect = frame
+            }
+        )
     }
 }
 
@@ -521,6 +528,7 @@ private enum ButtonScreenFrames {
     static let wifi = ScreenFrameBox()
     static let clock = ScreenFrameBox()
     static let apple = ScreenFrameBox()
+    static let appMenu = ScreenFrameBox()
 }
 
 private final class ScreenFrameBox {

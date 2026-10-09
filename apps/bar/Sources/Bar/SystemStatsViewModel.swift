@@ -66,12 +66,13 @@ final class SystemStatsViewModel: ObservableObject {
 
     // MARK: - CPU
 
-    private struct CPUSample {
+    nonisolated private struct CPUSample: Sendable {
         let load: host_cpu_load_info
         let percent: Int
     }
 
-    private static func sampleCPU(previous: host_cpu_load_info?) -> CPUSample? {
+    // Sampling helpers are nonisolated so they can run on a utility queue.
+    nonisolated private static func sampleCPU(previous: host_cpu_load_info?) -> CPUSample? {
         guard let current = hostCPULoadInfo() else { return nil }
         guard let previous else {
             return CPUSample(load: current, percent: 0)
@@ -90,7 +91,7 @@ final class SystemStatsViewModel: ObservableObject {
         return CPUSample(load: current, percent: min(max(percent, 0), 100))
     }
 
-    private static func hostCPULoadInfo() -> host_cpu_load_info? {
+    nonisolated private static func hostCPULoadInfo() -> host_cpu_load_info? {
         var info = host_cpu_load_info()
         var count = mach_msg_type_number_t(
             MemoryLayout<host_cpu_load_info>.stride / MemoryLayout<integer_t>.stride
@@ -108,7 +109,7 @@ final class SystemStatsViewModel: ObservableObject {
 
     // MARK: - Memory
 
-    private static func sampleMemoryPercent() -> Int {
+    nonisolated private static func sampleMemoryPercent() -> Int {
         guard let vm = vmStatistics64() else { return 0 }
 
         var total: UInt64 = 0
@@ -134,7 +135,7 @@ final class SystemStatsViewModel: ObservableObject {
         return min(max(percent, 0), 100)
     }
 
-    private static func vmStatistics64() -> vm_statistics64? {
+    nonisolated private static func vmStatistics64() -> vm_statistics64? {
         var info = vm_statistics64()
         var count = mach_msg_type_number_t(
             MemoryLayout<vm_statistics64>.stride / MemoryLayout<integer_t>.stride
@@ -151,7 +152,7 @@ final class SystemStatsViewModel: ObservableObject {
     }
 
     /// `mach_host_self()` returns a send right that must be deallocated.
-    private static func withHostPort<T>(_ body: (mach_port_t) -> T) -> T {
+    nonisolated private static func withHostPort<T>(_ body: (mach_port_t) -> T) -> T {
         let host = mach_host_self()
         defer { mach_port_deallocate(mach_task_self_, host) }
         return body(host)
@@ -160,7 +161,7 @@ final class SystemStatsViewModel: ObservableObject {
     // MARK: - GPU
 
     /// Reads IOAccelerator `Device Utilization %` (same source as Activity Monitor).
-    private static func sampleGPUPercent() -> Int {
+    nonisolated private static func sampleGPUPercent() -> Int {
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(
             kIOMainPortDefault,
@@ -193,7 +194,7 @@ final class SystemStatsViewModel: ObservableObject {
         return min(max(best, 0), 100)
     }
 
-    private static func intValue(_ any: Any?) -> Int? {
+    nonisolated private static func intValue(_ any: Any?) -> Int? {
         switch any {
         case let n as Int: return n
         case let n as NSNumber: return n.intValue

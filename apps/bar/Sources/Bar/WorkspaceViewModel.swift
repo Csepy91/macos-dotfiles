@@ -72,10 +72,6 @@ final class WorkspaceViewModel: ObservableObject {
         omniwm.switchToWorkspace(rawName)
     }
 
-    func openOmniWMMenu() {
-        omniwm.openMenuAnywhere()
-    }
-
     // MARK: - Private
 
     private func apply(_ list: [WorkspaceInfo]?) {

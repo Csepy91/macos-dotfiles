@@ -206,14 +206,19 @@ final class FullscreenMonitor: ObservableObject {
 
     // MARK: - Detection
 
-    /// `nil` means inconclusive (window-list copy failed) — keep previous state.
+    /// `nil` means inconclusive — caller keeps the previous fullscreen state.
+    ///
+    /// Only trust an explicit AX fullscreen bit. OmniWM hides / overlaps the
+    /// system menu bar, so "no strip in CGWindowList" is normal on every
+    /// Space — treating that as fullscreen made the bar vanish after workspace
+    /// clicks (Bar becomes frontmost → AX inconclusive → false hide).
     nonisolated static func isNativeFullscreenSpace() -> Bool? {
         if let ax = frontmostWindowIsFullscreen() {
             return ax
         }
-        // Frontmost is Bar, or AX miss: infer from system menu-bar strip presence.
-        if let hasMenuStrip = hasSystemMenuBarStrip() {
-            return !hasMenuStrip
+        // Positive evidence only: a visible system menu strip means not fullscreen.
+        if hasSystemMenuBarStrip() == true {
+            return false
         }
         return nil
     }

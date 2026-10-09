@@ -87,15 +87,20 @@ final class TopBarWindow: NSPanel {
     }
 
     /// Instant hide/show for native macOS fullscreen Spaces.
+    ///
+    /// Stay ordered in while hidden (`ignoresMouseEvents`) so reveal does not
+    /// `orderFront` under the cursor and accidentally activate the leftmost
+    /// workspace pill.
     func setHiddenForFullscreen(_ hidden: Bool) {
         if hidden {
             BarPopoverCoordinator.dismissAll()
             alphaValue = 0
-            orderOut(nil)
+            ignoresMouseEvents = true
             return
         }
         reposition(animated: false)
         alphaValue = 1
+        ignoresMouseEvents = false
         orderFrontRegardless()
     }
 
