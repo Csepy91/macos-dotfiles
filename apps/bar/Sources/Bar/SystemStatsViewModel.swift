@@ -78,10 +78,19 @@ final class SystemStatsViewModel: ObservableObject {
             return CPUSample(load: current, percent: 0)
         }
 
-        let user = Double(current.cpu_ticks.0 &- previous.cpu_ticks.0)
-        let system = Double(current.cpu_ticks.1 &- previous.cpu_ticks.1)
-        let idle = Double(current.cpu_ticks.2 &- previous.cpu_ticks.2)
-        let nice = Double(current.cpu_ticks.3 &- previous.cpu_ticks.3)
+        // Tick counters should only increase; a regression means resync (avoid &- wrap → 100%).
+        guard current.cpu_ticks.0 >= previous.cpu_ticks.0,
+              current.cpu_ticks.1 >= previous.cpu_ticks.1,
+              current.cpu_ticks.2 >= previous.cpu_ticks.2,
+              current.cpu_ticks.3 >= previous.cpu_ticks.3
+        else {
+            return CPUSample(load: current, percent: 0)
+        }
+
+        let user = Double(current.cpu_ticks.0 - previous.cpu_ticks.0)
+        let system = Double(current.cpu_ticks.1 - previous.cpu_ticks.1)
+        let idle = Double(current.cpu_ticks.2 - previous.cpu_ticks.2)
+        let nice = Double(current.cpu_ticks.3 - previous.cpu_ticks.3)
         let total = user + system + idle + nice
         guard total > 0 else {
             return CPUSample(load: current, percent: 0)

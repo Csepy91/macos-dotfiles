@@ -15,7 +15,7 @@ Apple Silicon macOS rice built on **Homebrew** (all packages) and **GNU Stow** (
 | Shell | zsh + starship + plugins |
 | Theme | `theme apply` (palettes under `packages/theme/`) |
 | Editor | Sublime Text + Cursor (palette theme) |
-| Launcher | Custom notch Launcher (`Alt+R` / `Alt+Shift+R`) |
+| Launcher | Custom notch Launcher (`Alt+R` Carbon / `Alt+Shift+R` skhd) |
 | Packages | Homebrew |
 | Dotfiles | GNU Stow |
 
@@ -170,8 +170,8 @@ fallback is Catppuccin Macchiato when the config file is absent.
 
 ```sh
 ./scripts/install-launcher.sh   # → ~/Applications/Launcher.app + LaunchAgent
-launcher --toggle               # or Alt+R via skhd
-launcher --menu                 # or Alt+Shift+R
+launcher --toggle               # or Alt+R (Carbon hotkey)
+launcher --menu                 # or Alt+Shift+R (skhd)
 ```
 
 See `packages/launcher/.config/launcher/README.md` and [docs/PERMISSIONS.md](docs/PERMISSIONS.md).

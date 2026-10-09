@@ -479,7 +479,7 @@ install_launcher_app() {
   [[ -x "$script" ]] || chmod +x "$script"
   info "Building / installing Launcher…"
   if "$script"; then
-    ok "Launcher ready (Alt+R via skhd)"
+    ok "Launcher ready (Alt+R Carbon hotkey)"
   else
     warn "Launcher install failed — run: ./scripts/install-launcher.sh"
   fi

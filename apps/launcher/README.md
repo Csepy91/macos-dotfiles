@@ -30,7 +30,7 @@ that grant survives rebuilds (ad-hoc signing does not).
 | `ClipboardHistoryStore.swift` | Pasteboard poll + text/image persistence |
 | `LauncherViewModel.swift` | Fuzzy filter, modes, keyboard |
 | `MainView.swift` | SwiftUI UI bound to theme tokens |
-| `HotkeyManager.swift` | Carbon global hotkey (opt-in; rice uses skhd) |
+| `HotkeyManager.swift` | Carbon global hotkey (rice: Alt+R; skhd owns Alt+Shift+R menu) |
 | `IPCServer.swift` | Unix socket IPC + single-instance ping |
 
 ## Hotkeys

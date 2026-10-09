@@ -134,7 +134,9 @@ final class FullscreenMonitor: ObservableObject {
     private func startMousePolling() {
         stopMousePolling()
         let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
+            // Prefer an explicit MainActor hop over assumeIsolated — safer if the
+            // timer ever fires off the main-actor executor under Swift 6.
+            Task { @MainActor in
                 self?.updateRevealFromMouse()
             }
         }

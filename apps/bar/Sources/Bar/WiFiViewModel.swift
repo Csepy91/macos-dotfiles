@@ -92,9 +92,13 @@ final class WiFiViewModel: ObservableObject {
 
         if let prev = prevSample {
             let dt = now - prev.t
-            if dt >= 0.4 {
-                let downBits = Double(bytes.rx &- prev.rx) * 8.0
-                let upBits = Double(bytes.tx &- prev.tx) * 8.0
+            // Interface reconnect / counter reset — resync without a wrap spike.
+            if bytes.rx < prev.rx || bytes.tx < prev.tx {
+                downMbps = 0
+                upMbps = 0
+            } else if dt >= 0.4 {
+                let downBits = Double(bytes.rx - prev.rx) * 8.0
+                let upBits = Double(bytes.tx - prev.tx) * 8.0
                 downMbps = max(0, downBits / (dt * 1_000_000))
                 upMbps = max(0, upBits / (dt * 1_000_000))
             }

@@ -96,26 +96,29 @@ final class ClipboardHistoryStore: ObservableObject {
     /// Write an entry back to the pasteboard without re-inserting it into history.
     func copyToPasteboard(_ entry: ClipboardEntry) -> Bool {
         let pb = NSPasteboard.general
+        // Ignore pasteboard churn from clearContents + write if a poll interleaves.
+        // Always clear the flag after syncing lastChangeCount — otherwise the next
+        // real copy is dropped (poll only clears the flag when changeCount moves).
         ignoreNextChange = true
+        defer {
+            lastChangeCount = pb.changeCount
+            ignoreNextChange = false
+        }
         pb.clearContents()
 
         switch entry.kind {
         case .text:
             pb.setString(entry.preview, forType: .string)
-            lastChangeCount = pb.changeCount
             return true
         case .image:
             guard let filename = entry.imageFilename else {
-                ignoreNextChange = false
                 return false
             }
             let url = imagesDirectory.appendingPathComponent(filename)
             guard let image = NSImage(contentsOf: url) else {
-                ignoreNextChange = false
                 return false
             }
             pb.writeObjects([image])
-            lastChangeCount = pb.changeCount
             return true
         }
     }

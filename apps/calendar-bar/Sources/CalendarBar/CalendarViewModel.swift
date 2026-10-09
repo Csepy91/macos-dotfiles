@@ -175,10 +175,14 @@ final class CalendarViewModel: ObservableObject {
         switch status {
         case .fullAccess, .authorized:
             authState = .authorized
-        case .writeOnly, .denied:
+        case .denied:
             authState = .denied
         case .restricted:
             authState = .restricted
+        case .writeOnly:
+            // Write-only cannot read events; treat as undetermined so we can
+            // prompt to upgrade via requestFullAccessToEvents().
+            authState = .unknown
         case .notDetermined:
             authState = .unknown
         @unknown default:
